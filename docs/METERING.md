@@ -60,9 +60,17 @@ cd watcher && mix run ../scripts/probe-live.exs   # the real poller, a few close
 
 the check script detects the account the token can actually see and tells you if `CLOUDFLARE_ACCOUNT_ID` points somewhere else. the dataset and field names were verified against the live schema on 2026-10-04; if cloudflare drifts the schema again, `scripts/probe-cf-schema.sh` dumps the current shape. pricing is a placeholder constant in the client, cents per million invocations; set it to your plan's published number before you trust the dollars.
 
+## the aws live path
+
+the watcher ships a cost explorer client too; `Killowatt.Metering.AwsClient` calls GetCostAndUsage with hourly granularity grouped by service, signed by the same sigv4 the enforcement adapter uses. it needs `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, the identity needs `ce:GetCostAndUsage`, and `AWS_REGION` only matters for signing, since cost explorer is global. point the poller at it the same way as cloudflare; the cursor model is identical, one closed hour per poll. hourly granularity is served for the last fourteen days; polls outside that window come back empty rather than erroring.
+
+## anomaly scoring
+
+`scorer/score.jl` reads any stream of these events and writes them back with a score per account and service; the current event against the median and mad of its own recent window. it is the layer that catches a slow drift the thresholds are too coarse to see. advisory today; it raises its hand beside the breaker, it does not trip it.
+
 ## what still needs credentials
 
-the aws side. the scale-to-zero adapter is built and its signer is verified, but live enforcement waits on an access key; see the readme for the exact env vars and the least-privilege policy.
+proof, not code. the aws live path and the cloudflare enforcement adapter both wait on credentials used against a real account with real traffic; the cloudflare metering path already has that proof.
 
 ## granularity notes
 

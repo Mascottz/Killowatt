@@ -47,3 +47,17 @@ jobs:
           diff /tmp/accounts.json policies/accounts.json
           cue export ./policies -e acme -o /tmp/acme.json
           diff /tmp/acme.json policies/acme.json
+
+  scorer:
+    name: julia scorer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1.11"
+      - run: julia scorer/runtests.jl
+      - name: the scorer flags the sample bill's planted loop
+        run: |
+          julia scorer/score.jl metering/sample-bill.jsonl > /tmp/scored.jsonl
+          grep -q '"flag": "anomaly"' /tmp/scored.jsonl
