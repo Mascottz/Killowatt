@@ -180,3 +180,61 @@ fn metering_filters_sorts_and_rejects() {
 
     std::fs::remove_file(&path).ok();
 }
+
+#[test]
+fn watch_mode_produces_no_order() {
+    assert!(killowatt_core::enforce::order_for(
+        "alert_only",
+        "acct",
+        "api",
+        "whatever",
+        1000
+    )
+    .is_none());
+}
+
+#[test]
+fn hard_stop_maps_to_suspend_and_throttle_maps_to_throttle() {
+    use killowatt_core::enforce::{order_for, Action};
+
+    let stop = order_for("hard_stop", "acct", "api", "burst broke", 1000).unwrap();
+    assert_eq!(stop.action, Action::Suspend);
+
+    let throttle = order_for("throttle", "acct", "api", "burst broke", 1000).unwrap();
+    assert_eq!(throttle.action, Action::Throttle);
+}
+
+#[test]
+fn dry_run_collects_orders_and_touches_nothing() {
+    use killowatt_core::enforce::{order_for, DryRun, Enforcer};
+
+    let mut dry = DryRun::new();
+    let order = order_for("hard_stop", "acct", "api", "burst broke", 1000).unwrap();
+    let report = dry.enforce(&order).unwrap();
+
+    assert!(report.contains("dry-run"));
+    assert_eq!(dry.orders.len(), 1);
+}
+
+#[test]
+fn audit_log_appends_one_json_line_per_order() {
+    use killowatt_core::enforce::{order_for, AuditLog, Enforcer};
+
+    let path = std::env::temp_dir().join(format!("killowatt-audit-{}.jsonl", std::process::id()));
+    let _ = std::fs::remove_file(&path);
+
+    let mut log = AuditLog::new(&path);
+    let order = order_for("hard_stop", "acct", "api", "burst broke", 1000).unwrap();
+    log.enforce(&order).unwrap();
+    log.enforce(&order).unwrap();
+
+    let body = std::fs::read_to_string(&path).unwrap();
+    let lines: Vec<&str> = body.lines().collect();
+    assert_eq!(lines.len(), 2);
+
+    let parsed: serde_json::Value = serde_json::from_str(lines[0]).unwrap();
+    assert_eq!(parsed["service"], "api");
+    assert_eq!(parsed["action"], "suspend");
+
+    std::fs::remove_file(&path).ok();
+}

@@ -1,4 +1,5 @@
 pub mod breaker;
+pub mod enforce;
 pub mod ledger;
 pub mod metering;
 pub mod policy;

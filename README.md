@@ -6,6 +6,16 @@ a misconfigured loop once burned $34k in 8 days and nobody noticed until the inv
 
 not another dashboard. not another budget alert. a circuit breaker.
 
+## enforcement
+
+a trip becomes an order, and every order carries its own undo. dry-run is the default; it reports what would happen and touches nothing. `--audit` appends every order as one json line, the record you show when someone asks what the breaker did at three in the morning.
+
+```bash
+cargo run --release -- ingest ../metering/sample-bill.jsonl --audit /tmp/orders.jsonl
+```
+
+the first live adapter suspends the cloudflare worker behind the service that tripped, via the watcher, and enabling it again restores traffic. reversible first, lethal later; kill is a policy word that has no code path yet, on purpose.
+
 ## two postures
 
 armed, and watch. armed stops the loop the moment a window breaks. watch sees everything and touches nothing; it just counts what it would have saved. watch mode is how you earn the right to arm the breaker, and the report you show before anyone hands you the kill switch.
@@ -90,7 +100,7 @@ t+20:00   summary spent, untouched $333.72; would have saved $209.94
 ## where this goes next
 
 - the live metering poller is scaffolded in the watcher with a fake producer and a cloudflare client; it wakes up the day a real token shows up
-- enforcement actions per provider, via the rust sdks
+- more enforcement adapters; aws scale-to-min next, same undo-on-every-order rule
 - webhooks and slack from the watcher
 - anomaly scoring on top of the plain thresholds; julia service, later
 

@@ -14,10 +14,10 @@ defmodule Killowatt.Accounts do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
-  def start_account(account, policy) do
+  def start_account(account, policy, opts \\ []) do
     DynamicSupervisor.start_child(
       __MODULE__,
-      {Killowatt.AccountWatcher, {account, policy}}
+      {Killowatt.AccountWatcher, {account, policy, opts}}
     )
   end
 

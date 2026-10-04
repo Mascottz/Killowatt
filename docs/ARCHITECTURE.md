@@ -43,6 +43,10 @@ one genserver per account under a dynamic supervisor. the beam gives me per acco
 
 policies are data, validated at build time. `cue vet` before deploy, `cue export` to json for the core. if a policy does not pass vet it never ships. the schema is in `policies/schema.cue`, accounts live next to it.
 
+## enforcement
+
+a trip becomes an order. the core produces orders (suspend, throttle; kill exists as a word and nothing more, on purpose), and the watcher executes them through a mode; dry run by default, cloudflare when the creds show up, test sink in tests. every order carries its undo. dry run and the audit log are the trust ramp for enforcement the same way watch mode is the trust ramp for the breaker; nobody arms what they cannot first watch, and nobody enforces what they cannot first audit.
+
 ## contracts, protobuf
 
 `proto/killowatt.proto` is the wire contract between core, watcher, and anything else that shows up later. if a field is not in the proto it does not exist.

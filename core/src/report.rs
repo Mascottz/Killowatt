@@ -1,4 +1,5 @@
 use crate::breaker::{Breaker, Verdict};
+use crate::enforce::{self, Enforcer};
 use crate::ledger::Event;
 use crate::policy::Policy;
 use crate::{fmt_t, money};
@@ -15,7 +16,7 @@ pub struct Outcome {
 // feed an ordered event stream through a breaker and tell the story.
 // used by the built-in demo and by ingest, so simulated bills and real
 // bills get exactly the same treatment.
-pub fn replay(policy: &Policy, events: &[Event]) -> Outcome {
+pub fn replay(policy: &Policy, events: &[Event], enforcer: &mut dyn Enforcer) -> Outcome {
     let mut br = Breaker::new(policy.clone());
     let total = events.len();
     let step = (total / 12).max(1);
@@ -55,6 +56,15 @@ pub fn replay(policy: &Policy, events: &[Event]) -> Outcome {
                 );
                 crossed_at = Some(ts);
                 spent_at_cross_cents = br.spent_at_trip_cents;
+
+                if let Some(order) =
+                    enforce::order_for(&policy.action, &policy.account, &e.service, &reason, ts)
+                {
+                    match enforcer.enforce(&order) {
+                        Ok(report) => println!("{}  enforce {}", fmt_t(ts - first_ts), report),
+                        Err(msg) => println!("{}  enforce failed; {}", fmt_t(ts - first_ts), msg),
+                    }
+                }
             }
             Verdict::Watch(reason) => {
                 if crossed_at.is_none() {
