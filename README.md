@@ -2,6 +2,8 @@
 
 the hard stop for runaway cloud spend.
 
+[![ci](https://github.com/Mascottz/Killowatt/actions/workflows/ci.yml/badge.svg)](https://github.com/Mascottz/Killowatt/actions/workflows/ci.yml)
+
 a misconfigured loop once burned $34k in 8 days and nobody noticed until the invoice landed. alerts fire after the money is already gone. killowatt is the part that actually stops it; it watches usage in real time, checks your spend policies, and trips the breaker before the bill gets away.
 
 not another dashboard. not another budget alert. a circuit breaker.
