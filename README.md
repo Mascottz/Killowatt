@@ -14,7 +14,7 @@ a trip becomes an order, and every order carries its own undo. dry-run is the de
 cargo run --release -- ingest ../metering/sample-bill.jsonl --audit /tmp/orders.jsonl
 ```
 
-the first live adapter suspends the cloudflare worker behind the service that tripped, via the watcher, and enabling it again restores traffic. reversible first, lethal later; kill is a policy word that has no code path yet, on purpose.
+the first live adapter suspends the cloudflare worker behind the service that tripped, via the watcher, and enabling it again restores traffic. the second scales the aws auto scaling group behind it to zero, signed with a sigv4 implementation verified against the aws docs' own test vectors. reversible first, lethal later; kill is a policy word that has no code path yet, on purpose.
 
 ## alerts go where your humans are
 
@@ -104,8 +104,8 @@ t+20:00   summary spent, untouched $333.72; would have saved $209.94
 ## where this goes next
 
 - the live metering poller is scaffolded in the watcher with a fake producer and a cloudflare client; it wakes up the day a real token shows up
-- more enforcement adapters; aws scale-to-min next, same undo-on-every-order rule
 - anomaly scoring on top of the plain thresholds; julia service, later
+- the rest is credentials; both live adapters and the poller are waiting on tokens, not code
 
 ## house rules
 

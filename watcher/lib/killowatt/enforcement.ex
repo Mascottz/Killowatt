@@ -49,6 +49,29 @@ defmodule Killowatt.Enforcement do
     {:ok, order}
   end
 
+  defp apply_order(order, :aws) do
+    case Killowatt.Enforcement.Aws.scale_to_zero(order.service) do
+      :ok ->
+        Killowatt.Alerts.notice(%{
+          account: order.account,
+          kind: "enforced",
+          message:
+            "scaled the group behind #{order.service} to zero via the aws api → restore its previous min and desired to undo"
+        })
+
+        {:ok, order}
+
+      {:error, reason} ->
+        Killowatt.Alerts.notice(%{
+          account: order.account,
+          kind: "enforcement failed",
+          message: "#{order.service}; #{inspect(reason)}"
+        })
+
+        {:error, reason}
+    end
+  end
+
   defp apply_order(order, :cloudflare) do
     case Killowatt.Enforcement.Cloudflare.suspend(order.service) do
       :ok ->
