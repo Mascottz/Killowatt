@@ -33,6 +33,8 @@ three checks per event, in order;
 
 exempt services get recorded but never count against limits; backups should not take the blame for someone's loop.
 
+the policy action sets the posture; hard_stop and throttle trip the breaker, and alert_only is watch mode. in watch mode nothing is blocked, the breach is noted once, and every non-exempt charge after the first breach accumulates as would-have-saved. that number is the report you show before anyone hands you the kill switch.
+
 ## the watcher, elixir
 
 one genserver per account under a dynamic supervisor. the beam gives me per account isolation for free; account 4,312 crashing does not wake account 4,313. the watcher owns side effects; provider actions, alert dispatch, webhooks. it never does math that the core should own.

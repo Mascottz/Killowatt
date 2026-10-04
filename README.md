@@ -6,6 +6,10 @@ a misconfigured loop once burned $34k in 8 days and nobody noticed until the inv
 
 not another dashboard. not another budget alert. a circuit breaker.
 
+## two postures
+
+armed, and watch. armed stops the loop the moment a window breaks. watch sees everything and touches nothing; it just counts what it would have saved. watch mode is how you earn the right to arm the breaker, and the report you show before anyone hands you the kill switch.
+
 ## how it works
 
 usage events flow into the core, the core keeps a rolling ledger per account, evaluates your policy, and when a window blows its limit it trips. trip means enforcement; suspend the service, scale to zero, or kill it. everything after the trip is counted as prevented spend.
@@ -51,7 +55,7 @@ cue vet ./policies/...
 cue export ./policies -e acme -o policies/acme.json
 ```
 
-the dashboard runs a live simulation with a trip you can watch happen.
+the dashboard runs a live simulation with a trip you can watch happen, and the posture switch flips it between armed and watch mode.
 
 ```bash
 cd web
@@ -66,6 +70,14 @@ t+07:00   state   burst $23.38 of $40.00; hour $23.38 of $60.00
 t+07:58   TRIP    durable-objects blew the burst window; $40.20 of $40.00 allowed
 t+07:58   stop    suspended durable-objects on acme-prod; action hard_stop
 t+20:00   summary spent before trip $40.20; prevented after $209.38 and counting
+```
+
+and the same incident in watch mode;
+
+```
+t+07:58   WATCH   durable-objects blew the burst window; $40.20 of $40.00 allowed
+t+07:58   note    nothing touched; killowatt would have stopped this
+t+20:00   summary spent, untouched $333.72; would have saved $209.94
 ```
 
 ## where this goes next

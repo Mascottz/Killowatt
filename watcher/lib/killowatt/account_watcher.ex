@@ -3,6 +3,9 @@ defmodule Killowatt.AccountWatcher do
   one process, one account. it holds the rolling ledger, evaluates the policy,
   and raises an alert the moment a window blows its limit. it never calls a
   cloud api itself; it decides, and the platform acts.
+
+  in watch mode (action alert_only) it does the seeing without the stopping;
+  the account keeps spending and the watcher counts what would have been saved.
   """
   use GenServer
 
@@ -27,7 +30,9 @@ defmodule Killowatt.AccountWatcher do
        ledger: [],
        tripped: false,
        warned: false,
-       prevented_cents: 0
+       watching: false,
+       prevented_cents: 0,
+       would_have_saved_cents: 0
      }}
   end
 
@@ -46,15 +51,27 @@ defmodule Killowatt.AccountWatcher do
         burst = spent(ledger, event.at_ms, s.policy.burst_window_ms, s.policy)
         hour = spent(ledger, event.at_ms, @hour_ms, s.policy)
 
-        cond do
-          burst > s.policy.burst_limit ->
-            trip(s, event, burst, s.policy.burst_limit, "burst window")
+        breach =
+          cond do
+            burst > s.policy.burst_limit ->
+              {burst, s.policy.burst_limit, "burst window"}
 
-          hour > s.policy.hourly_limit ->
-            trip(s, event, hour, s.policy.hourly_limit, "hourly limit")
+            hour > s.policy.hourly_limit ->
+              {hour, s.policy.hourly_limit, "hourly limit"}
 
-          true ->
+            true ->
+              nil
+          end
+
+        case breach do
+          nil ->
             {:noreply, maybe_warn(s, event, burst)}
+
+          {spend, limit, window_name} when s.policy.action == "alert_only" ->
+            watch(s, event, spend, limit, window_name)
+
+          {spend, limit, window_name} ->
+            trip(s, event, spend, limit, window_name)
         end
     end
   end
@@ -85,6 +102,26 @@ defmodule Killowatt.AccountWatcher do
     else
       s
     end
+  end
+
+  # watch mode; the limit broke, nothing gets touched, and from the first
+  # breach onward every charge is counted as would-have-saved.
+  defp watch(s, event, spend, limit, window_name) do
+    if not s.watching do
+      Killowatt.Alerts.notice(%{
+        account: s.account,
+        kind: "watching",
+        message:
+          "#{event.service} blew the #{window_name}; #{money(spend)} of #{money(limit)} allowed, nothing touched"
+      })
+    end
+
+    {:noreply,
+     %{
+       s
+       | watching: true,
+         would_have_saved_cents: s.would_have_saved_cents + event.cents
+     }}
   end
 
   defp trip(s, event, spend, limit, window_name) do
