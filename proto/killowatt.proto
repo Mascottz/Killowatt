@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package killowatt.v1;
+
+// one unit of spend, straight from metering.
+message UsageEvent {
+  string account = 1;
+  string service = 2;
+  int64 cost_cents = 3;
+  int64 at_ms = 4;
+}
+
+// what the core decided about an event.
+message Verdict {
+  enum Kind {
+    ALLOW = 0;
+    THROTTLE = 1;
+    HARD_STOP = 2;
+  }
+  Kind kind = 1;
+  string reason = 2;
+  int64 window_spend_cents = 3;
+  int64 limit_cents = 4;
+}
+
+// what to do now that we tripped.
+message HardStopCommand {
+  string account = 1;
+  string service = 2;
+  // suspend | scale_to_zero | kill
+  string action = 3;
+  string trigger_reason = 4;
+}
+
+// what the watcher tells the humans.
+message AlertNotice {
+  string account = 1;
+  // info | warning | critical
+  string severity = 2;
+  string message = 3;
+}
