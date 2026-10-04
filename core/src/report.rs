@@ -7,6 +7,8 @@ use crate::{fmt_t, money};
 // what one replay of an event stream produces.
 pub struct Outcome {
     pub crossed_at: Option<u64>,
+    pub first_ts: u64,
+    pub cross_window: Option<String>,
     pub spent_at_cross_cents: u64,
     pub prevented_cents: u64,
     pub saved_cents: u64,
@@ -16,7 +18,12 @@ pub struct Outcome {
 // feed an ordered event stream through a breaker and tell the story.
 // used by the built-in demo and by ingest, so simulated bills and real
 // bills get exactly the same treatment.
-pub fn replay(policy: &Policy, events: &[Event], enforcer: &mut dyn Enforcer) -> Outcome {
+pub fn replay(
+    policy: &Policy,
+    events: &[Event],
+    enforcer: &mut dyn Enforcer,
+    verbose: bool,
+) -> Outcome {
     let mut br = Breaker::new(policy.clone());
     let total = events.len();
     let step = (total / 12).max(1);
@@ -41,19 +48,21 @@ pub fn replay(policy: &Policy, events: &[Event], enforcer: &mut dyn Enforcer) ->
 
         match verdict {
             Verdict::HardStop(reason) | Verdict::Throttle(reason) => {
-                let label = if policy.action == "throttle" {
-                    "THROTTLE"
-                } else {
-                    "TRIP"
-                };
-                println!("{}  {}    {}", fmt_t(ts - first_ts), label, reason);
-                println!(
-                    "{}  stop    suspended {} on {}; action {}",
-                    fmt_t(ts - first_ts),
-                    e.service,
-                    policy.account,
-                    policy.action
-                );
+                if verbose {
+                    let label = if policy.action == "throttle" {
+                        "THROTTLE"
+                    } else {
+                        "TRIP"
+                    };
+                    println!("{}  {}    {}", fmt_t(ts - first_ts), label, reason);
+                    println!(
+                        "{}  stop    suspended {} on {}; action {}",
+                        fmt_t(ts - first_ts),
+                        e.service,
+                        policy.account,
+                        policy.action
+                    );
+                }
                 crossed_at = Some(ts);
                 spent_at_cross_cents = br.spent_at_trip_cents;
 
@@ -61,7 +70,11 @@ pub fn replay(policy: &Policy, events: &[Event], enforcer: &mut dyn Enforcer) ->
                     enforce::order_for(&policy.action, &policy.account, &e.service, &reason, ts)
                 {
                     match enforcer.enforce(&order) {
-                        Ok(report) => println!("{}  enforce {}", fmt_t(ts - first_ts), report),
+                        Ok(report) => {
+                            if verbose {
+                                println!("{}  enforce {}", fmt_t(ts - first_ts), report)
+                            }
+                        }
                         Err(msg) => println!("{}  enforce failed; {}", fmt_t(ts - first_ts), msg),
                     }
                 }
@@ -73,11 +86,13 @@ pub fn replay(policy: &Policy, events: &[Event], enforcer: &mut dyn Enforcer) ->
                 }
                 if !watch_announced {
                     watch_announced = true;
-                    println!("{}  WATCH   {}", fmt_t(ts - first_ts), reason);
-                    println!(
-                        "{}  note    nothing touched; killowatt would have stopped this",
-                        fmt_t(ts - first_ts)
-                    );
+                    if verbose {
+                        println!("{}  WATCH   {}", fmt_t(ts - first_ts), reason);
+                        println!(
+                            "{}  note    nothing touched; killowatt would have stopped this",
+                            fmt_t(ts - first_ts)
+                        );
+                    }
                 }
             }
             Verdict::Blocked => {
@@ -86,7 +101,7 @@ pub fn replay(policy: &Policy, events: &[Event], enforcer: &mut dyn Enforcer) ->
             Verdict::Allow => {}
         }
 
-        if i % step != 0 {
+        if i % step != 0 || !verbose {
             continue;
         }
 
@@ -122,8 +137,9 @@ pub fn replay(policy: &Policy, events: &[Event], enforcer: &mut dyn Enforcer) ->
         }
     }
 
-    println!();
-    println!("summary");
+    if verbose {
+        println!();
+        println!("summary");
     println!(
         "  stream                 {} events over {}",
         total,
@@ -153,8 +169,11 @@ pub fn replay(policy: &Policy, events: &[Event], enforcer: &mut dyn Enforcer) ->
         println!("  quiet stream           {}", money(cumulative_cents));
         println!("  nothing crossed a limit; nothing to stop");
     }
+    }
 
     Outcome {
+        first_ts,
+        cross_window: br.breach_window.map(String::from),
         crossed_at,
         spent_at_cross_cents,
         prevented_cents: br.prevented_cents,

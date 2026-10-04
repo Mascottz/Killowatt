@@ -238,3 +238,43 @@ fn audit_log_appends_one_json_line_per_order() {
 
     std::fs::remove_file(&path).ok();
 }
+
+#[test]
+fn bill_groups_events_by_account() {
+    use killowatt_core::metering;
+
+    let path = std::env::temp_dir().join(format!("killowatt-bill-{}.jsonl", std::process::id()));
+    std::fs::write(
+        &path,
+        r#"{"account":"a","service":"x","cents":10,"ts_ms":300}
+{"account":"b","service":"y","cents":20,"ts_ms":100}
+{"account":"a","service":"x","cents":11,"ts_ms":100}
+"#,
+    )
+    .unwrap();
+
+    let groups = metering::load_events_by_account(&path).unwrap();
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups["a"].len(), 2);
+    assert_eq!(groups["b"].len(), 1);
+    // sorted by time inside each group
+    assert_eq!(groups["a"][0].ts_ms, 100);
+    assert_eq!(groups["a"][1].ts_ms, 300);
+
+    // the single-account path still works on top of the groups
+    let solo = metering::load_events(&path, "b").unwrap();
+    assert_eq!(solo.len(), 1);
+
+    std::fs::remove_file(&path).ok();
+}
+
+#[test]
+fn registry_loads_every_repo_policy() {
+    use killowatt_core::policy;
+
+    let registry = policy::load_registry();
+    assert!(registry.contains_key("acme-prod"));
+    assert!(registry.contains_key("infra-core"));
+    assert_eq!(registry["infra-core"].action, "throttle");
+    assert_eq!(registry["acme-prod"].action, "hard_stop");
+}

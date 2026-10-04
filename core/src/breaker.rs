@@ -29,6 +29,8 @@ pub struct Breaker {
     pub prevented_cents: u64,
     pub would_have_saved_cents: u64,
     pub spent_at_trip_cents: u64,
+    /// which window crossed first, if any crossed yet
+    pub breach_window: Option<&'static str>,
 }
 
 impl Breaker {
@@ -41,6 +43,7 @@ impl Breaker {
             prevented_cents: 0,
             would_have_saved_cents: 0,
             spent_at_trip_cents: 0,
+            breach_window: None,
         }
     }
 
@@ -87,6 +90,7 @@ impl Breaker {
         if self.policy.action == "alert_only" {
             if self.watch_started_at.is_none() {
                 self.watch_started_at = Some(now_ms);
+                self.breach_window = Some(breach.window);
             }
             self.would_have_saved_cents += cents;
             return Verdict::Watch(format!(
@@ -136,6 +140,7 @@ impl Breaker {
     fn trip(&mut self, ts_ms: u64, breach: Breach, why: &str) -> Verdict {
         self.tripped_at = Some(ts_ms);
         self.spent_at_trip_cents = breach.spend;
+        self.breach_window = Some(breach.window);
         let reason = format!(
             "{}; {} of {} allowed",
             why,

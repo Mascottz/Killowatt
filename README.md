@@ -55,7 +55,7 @@ cd core
 cargo run --release
 ```
 
-replay a real billing export through the breaker; any provider, one json event per line, money in cents. `docs/METERING.md` has the shape and recipes for aws and cloudflare exports.
+replay a real billing export through the breaker; any provider, one json event per line, money in cents, as many accounts mixed in as the export carries. every account with a policy gets its own breaker, armed and watching; accounts without one get set aside and counted. add `--verbose` for the full transcript per account, `--audit <path>` to log every order. `docs/METERING.md` has the shape and recipes for aws and cloudflare exports.
 
 ```bash
 cd core
@@ -74,7 +74,10 @@ policies are cue files; validate and export them like this.
 ```bash
 cue vet ./policies/...
 cue export ./policies -e acme -o policies/acme.json
+cue export ./policies -o policies/accounts.json
 ```
+
+the first export feeds the built-in sim; the second is the registry the core reads at ingest, one policy per account.
 
 the dashboard runs a live simulation with a trip you can watch happen, and the posture switch flips it between armed and watch mode.
 
