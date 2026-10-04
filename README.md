@@ -41,6 +41,13 @@ cd core
 cargo run --release
 ```
 
+replay a real billing export through the breaker; any provider, one json event per line, money in cents. `docs/METERING.md` has the shape and recipes for aws and cloudflare exports.
+
+```bash
+cd core
+cargo run --release -- ingest ../metering/sample-bill.jsonl
+```
+
 the watcher demo does the same trip through the beam, one process per account.
 
 ```bash
@@ -82,7 +89,7 @@ t+20:00   summary spent, untouched $333.72; would have saved $209.94
 
 ## where this goes next
 
-- real metering from aws, gcp, and cloudflare into the core
+- the live metering poller is scaffolded in the watcher with a fake producer and a cloudflare client; it wakes up the day a real token shows up
 - enforcement actions per provider, via the rust sdks
 - webhooks and slack from the watcher
 - anomaly scoring on top of the plain thresholds; julia service, later
