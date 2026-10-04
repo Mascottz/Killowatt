@@ -93,4 +93,13 @@ defmodule Killowatt.AccountWatcherTest do
              n.account == account and n.kind == "hard stop"
            end)
   end
+
+  test "the daily limit trips the slow burn the small windows miss" do
+    account = start()
+    # $9.00 every 30 minutes; never close to the burst or hourly caps, but
+    # it passes the $250.00 daily cap just past hour twelve
+    Enum.each(0..27, fn i -> record(account, i * 1_800, "api", 900) end)
+    s = state(account)
+    assert s.tripped
+  end
 end
