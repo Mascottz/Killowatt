@@ -96,7 +96,8 @@ The ledger is the soul of the arena:
 
 ## Voice rules, non-negotiable
 
-- Casual, direct, first person; reads like i wrote it. first person belongs to the book's own voice; the hero, the margins, the attribution notes, the human cards. inside the entries, the rigorous reading stays neutral and declarative, and the intuition speaks in warm imperative imagery; the book never performs the derivation as "i".
+- Casual, direct, first person; reads like i wrote it. first person belongs to the book's own voice; the hero, the margins, the attribution notes, the human cards. inside the entries, the rigorous reading stays neutral and declarative, and the intuition speaks in warm imperative imagery; the book never performs the derivation as "i". instructions, ladders, checklists, and templates stand in the imperative or the neutral; "choose one entry.", never "i choose" and never "you must". the site hosts the book, not its machinery; contributing documents live in the repo, and the site carries only the short ladder with an outward link.
+- The rules bend. none of these rules, including this one, gets applied so uniformly that the uniformity itself becomes the pattern; that is the generated smell the whole voice exists to avoid. tense follows the story; "i placed", "i kept", "i ran", not "i put" on repeat. sentence openings vary; not every line starts with i, and the occasional neutral or passive line is right when it reads right. if a stretch of writing sounds like a stylesheet being enforced, rewrite it until it sounds like a person who simply writes this way.
 - No second person and no third-person writeups anywhere.
 - No em dashes ever; use ; or , or → contextually. plain dashes only inside hyphenated words.
 - Capitalize the first word of headers, paragraphs, and bullet items; the rest stays lowercase-casual.
