@@ -6,8 +6,8 @@ killowatt holds the kill switch, so the credentials around it deserve care.
 
 - everything reads from environment variables; nothing is written to disk by killowatt itself, and `.env` is git-ignored
 - scope tokens to the smallest set of permissions that works; the readme lists the minimum per provider
-- dry-run is the default enforcement mode; the live adapters only act when you set `KILOWATT_ENFORCE_MODE` explicitly
-- the audit log (`--audit <path>`) records every order as json; keep it somewhere you can answer questions from
+- dry-run is the default enforcement mode; the live adapters only act when `KILOWATT_ENFORCE_MODE` is set explicitly
+- the audit log (`--audit <path>`) records every order as json; keep it somewhere that answers questions later
 
 ## least privilege per provider
 
@@ -16,4 +16,4 @@ killowatt holds the kill switch, so the credentials around it deserve care.
 
 ## if something goes wrong
 
-revoke or roll the credential at the provider first; every enforcement path is reversible, and the undo rides with every order's notice. then open an issue with what you saw, without pasting secrets into it.
+revoke or roll the credential at the provider first; every enforcement path is reversible, and the undo rides with every order's notice. then open an issue with what happened, without pasting secrets into it.

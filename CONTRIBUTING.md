@@ -1,6 +1,6 @@
 # contributing
 
-the short version; keep the money in integer cents, keep the copy calm, and make the tests pass before you push. ci runs the same checks you can run locally.
+the short version; keep the money in integer cents, keep the copy calm, and make the tests pass before pushing. ci runs the same checks locally.
 
 ## run the checks
 
@@ -27,10 +27,10 @@ the shape is small; implement the side effect, carry the undo in the notice, and
 
 ## add a metering producer
 
-anything that can turn provider data into `%{service: String.t(), cents: non_neg_integer()}` implements `Killowatt.Metering.Client`. the cloudflare client is the reference; the parse step is pure and pinned by tests, and yours should be too.
+anything that can turn provider data into `%{service: String.t(), cents: non_neg_integer()}` implements `Killowatt.Metering.Client`. the cloudflare client is the reference; the parse step is pure and pinned by tests, and a new producer should be too.
 
 ## style
 
 - lowercase, first person, casual; the docs read like a person wrote them
-- no em dashes anywhere; use ; or , or an arrow where you need a break
+- no em dashes anywhere; use ; or , or an arrow where a break is needed
 - money is integer cents; if a float touches money, the change is wrong

@@ -4,7 +4,7 @@ the hard stop for runaway cloud spend.
 
 [![ci](https://github.com/Mascottz/Killowatt/actions/workflows/ci.yml/badge.svg)](https://github.com/Mascottz/Killowatt/actions/workflows/ci.yml)
 
-a misconfigured loop once burned $34k in 8 days and nobody noticed until the invoice landed. alerts fire after the money is already gone. killowatt is the part that actually stops it; it watches usage in real time, checks your spend policies, and trips the breaker before the bill gets away.
+a misconfigured loop once burned $34k in 8 days and nobody noticed until the invoice landed. alerts fire after the money is already gone. killowatt is the part that actually stops it; it watches usage in real time, checks the spend policies, and trips the breaker before the bill gets away.
 
 not another dashboard. not another budget alert. a circuit breaker.
 
@@ -13,10 +13,10 @@ not another dashboard. not another budget alert. a circuit breaker.
 everything below runs offline, no accounts, no tokens, nothing to bill.
 
 ```bash
-# once per machine, if you have no toolchain; rust, elixir, and cue
+# once per machine with no toolchain; rust, elixir, and cue
 bash scripts/bootstrap.sh
 
-# the incident, replayed armed and watching; a trip you can read
+# the incident, replayed armed and watching; a trip to read
 cd core && cargo run --release
 
 # the same trip through the beam, one process per account
@@ -26,7 +26,7 @@ cd watcher && mix run -e "Killowatt.Demo.run()"
 cd web && node server.js   # then open http://localhost:8080
 ```
 
-the two postures are the whole philosophy. armed stops the loop the moment a window breaks. watch sees everything and touches nothing, and counts what it would have saved. watch mode is how you earn the right to arm the breaker.
+the two postures are the whole philosophy. armed stops the loop the moment a window breaks. watch sees everything and touches nothing, and counts what it would have saved. the right to arm the breaker starts in watch mode.
 
 ## replay a real bill, any provider
 
@@ -39,9 +39,9 @@ cargo run --release -- ingest ../metering/sample-bill.jsonl
 
 add `--verbose` for the full transcript per account, `--audit <path>` to append every enforcement order as one json line. `docs/METERING.md` has the event shape and conversion recipes for aws and cloudflare exports.
 
-## bring your own cloud
+## plug in a real cloud
 
-copy `.env.example` to `.env`, fill in what you have, and source it. every variable is optional; each one only wakes up one more piece, and nothing acts until you say so.
+copy `.env.example` to `.env`, fill in what is available, and source it. every variable is optional; each one only wakes up one more piece, and nothing acts until the enforcement mode is set.
 
 **cloudflare**, live metering plus the suspend adapter:
 
@@ -51,12 +51,12 @@ scripts/check-cloudflare.sh            # verify everything, read-only
 cd watcher && mix run ../scripts/watch-live.exs    # the real poller, real bills
 ```
 
-the check script detects the account your token can actually see, so a pasted id that points somewhere else gets caught. the poller meters durable objects invocations per script name, and the moment an account trips, the adapter suspends the worker behind it; enabling it again is the undo.
+the check script detects the account the token can actually see, so a pasted id that points somewhere else gets caught. the poller meters durable objects invocations per script name, and the moment an account trips, the adapter suspends the worker behind it; enabling it again is the undo.
 
 **aws**, the scale-to-zero adapter:
 
 ```bash
-# least privilege is autoscaling:UpdateAutoScalingGroup on your group arns
+# least privilege is autoscaling:UpdateAutoScalingGroup on the mapped group arns
 cd watcher && mix run ../scripts/check-aws.exs     # signs an sts call with our own sigv4
 ```
 
@@ -66,7 +66,7 @@ on a trip the adapter scales the auto scaling group behind the service to zero; 
 
 set `KILOWATT_SLACK_WEBHOOK` or `KILOWATT_DISCORD_WEBHOOK` and notices go there; with neither set, the log is the sink. delivery is wrapped, so a dead webhook can never take the watcher down.
 
-**enforcement is dry-run until you say otherwise.** the default mode reports what would happen and touches nothing; `--audit` keeps the record. `KILOWATT_ENFORCE_MODE=cloudflare` or `aws` turns the real adapters on. reversible first, lethal later; kill is a policy word that has no code path yet, on purpose.
+**enforcement is dry-run until switched.** the default mode reports what would happen and touches nothing; `--audit` keeps the record. `KILOWATT_ENFORCE_MODE=cloudflare` or `aws` turns the real adapters on. reversible first, lethal later; kill is a policy word that has no code path yet, on purpose.
 
 ## anomaly scoring
 
@@ -92,7 +92,7 @@ the registry is the one source of truth both sides read; the rust core at ingest
 
 ## how it works
 
-usage events flow into the core, the core keeps a rolling ledger per account, evaluates your policy, and when a window blows its limit it trips. trip means enforcement; suspend the service, scale to zero, or kill it. everything after the trip is counted as prevented spend.
+usage events flow into the core, the core keeps a rolling ledger per account, evaluates the policy, and when a window blows its limit it trips. trip means enforcement; suspend the service, scale to zero, or kill it. everything after the trip is counted as prevented spend.
 
 ```
 usage events → core (rust) → verdict: allow | throttle | hard stop
@@ -104,7 +104,7 @@ usage events → core (rust) → verdict: allow | throttle | hard stop
 
 | piece | language | why that one |
 | --- | --- | --- |
-| `core/` | rust | the breaker itself; no gc pauses at the moment you decide to cut a resource |
+| `core/` | rust | the breaker itself; no gc pauses at the moment a resource gets cut |
 | `watcher/` | elixir | one tiny supervised process per account; one account going sideways never touches the rest |
 | `policies/` | cue | spend rules as data, validated before they get near production |
 | `proto/` | protobuf | the contract between the pieces |
@@ -139,4 +139,4 @@ t+20:00   summary spent, untouched $333.72; would have saved $209.94
 - money is integer cents everywhere; floats do not touch money
 - policies are validated in cue before deploy, never in production
 - dry run first, watch mode first, audit log always
-- copy and docs: no em dashes; use ; or , or an arrow where you need a break
+- copy and docs: no em dashes; use ; or , or an arrow where a break is needed

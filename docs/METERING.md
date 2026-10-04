@@ -10,7 +10,7 @@ everything that enters the core is a usage event; an account, a service, a cost 
 {"account":"acme-prod","service":"api-gateway","cents":120,"ts_ms":1790812800000}
 ```
 
-that shape is the contract. any provider, any export, any granularity; if you can get it into that shape, killowatt can replay it.
+that shape is the contract. any provider, any export, any granularity; anything that fits the shape replays.
 
 ## what works today
 
@@ -20,7 +20,7 @@ cargo run --release -- ingest metering/sample-bill.jsonl
 
 `metering/sample-bill.jsonl` is two and a half hours of five-minute buckets across three accounts; acme-prod with a durable objects retry loop starting at minute 95, infra-core with a slow queue-worker leak that only the hourly window catches, and staging noise that gets set aside because it has no policy. armed, acme-prod trips on the burst window at t+100 after $53.26 spent and prevents $226.36, while infra-core throttles at t+85 on the hourly limit after $126.96 and prevents $148.69; in watch mode the same exports would have saved $250.47 and $161.30. slower leaks trip on the hour, fast loops trip on the burst; whichever window breaks first is the one that gets reported, per account.
 
-## getting your real bill into the shape
+## getting a real bill into the shape
 
 aws; cost explorer or a cost and usage report, grouped by service and hour, dollars converted to cents;
 
@@ -58,7 +58,7 @@ scripts/check-cloudflare.sh           # token, accounts, workers list, the meter
 cd watcher && mix run ../scripts/probe-live.exs   # the real poller, a few closed hours
 ```
 
-the check script detects the account the token can actually see and tells you if `CLOUDFLARE_ACCOUNT_ID` points somewhere else. the dataset and field names were verified against the live schema on 2026-10-04; if cloudflare drifts the schema again, `scripts/probe-cf-schema.sh` dumps the current shape. pricing is a placeholder constant in the client, cents per million invocations; set it to your plan's published number before you trust the dollars.
+the check script detects the account the token can actually see and reports whether `CLOUDFLARE_ACCOUNT_ID` points somewhere else. the dataset and field names were verified against the live schema on 2026-10-04; if cloudflare drifts the schema again, `scripts/probe-cf-schema.sh` dumps the current shape. pricing is a placeholder constant in the client, cents per million invocations; set it to the plan's published number before trusting the dollars.
 
 ## the aws live path
 
