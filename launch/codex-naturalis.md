@@ -134,3 +134,8 @@ The code must read like i wrote it, because it is going on the account. every fi
 - Push with the token i paste; never reuse an old one.
 - Everything proves itself; julia computations carry their invariants, the referee validates the arena, the ledger can't break silently.
 - When in doubt, ship the beautiful minimum and leave a ladder.
+
+## House rules, added after the ref audit
+
+- Identity hygiene extends to refs. never rename, re-point, or force-push any branch other than the one named in the session message; a silent rename from a build platform once left the old identities reachable under a new name. the pull refs are permanent; github keeps `refs/pull/*` even after a branch is deleted, so the trailers and bot authorship must never exist in the first place.
+- Verify on the graph page, not the api. the rest contributors endpoint reads the default branch only, so it reports clean while the sidebar and the graph still carry ghosts from other refs and from caches. the check that counts is the contributors page itself, plus a raw payload scan for the old names.
