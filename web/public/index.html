@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Killowatt · the hard stop for cloud spend</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M18 2 L7 18 h7 l-2 12 L25 12 h-8 z' fill='%23C98E5F'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --spruce: #0D1A15;
+    --panel: #13221C;
+    --panel-raised: #182A22;
+    --hairline: #24382E;
+    --bone: #ECE7DB;
+    --moss: #9FB6A7;
+    --copper: #C98E5F;
+    --copper-bright: #E3AE7C;
+    --ember: #E2794F;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "URW Palladio L", Georgia, serif;
+    --sans: "Avenir Next", Avenir, "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { color-scheme: dark; }
+
+  body {
+    background: var(--spruce);
+    color: var(--bone);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(1100px 500px at 85% -10%, rgba(201, 142, 95, 0.07), transparent 60%),
+      linear-gradient(rgba(159, 182, 167, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(159, 182, 167, 0.035) 1px, transparent 1px);
+    background-size: auto, 48px 48px, 48px 48px;
+  }
+
+  ::selection { background: rgba(201, 142, 95, 0.35); }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
+
+  .lbl {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--moss);
+  }
+
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* entrance; short, eased, and only once */
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .rise { animation: rise 0.5s ease-out both; }
+  .d1 { animation-delay: 0.05s; } .d2 { animation-delay: 0.12s; }
+  .d3 { animation-delay: 0.2s; } .d4 { animation-delay: 0.28s; }
+  .d5 { animation-delay: 0.36s; }
+
+  /* ─ header ─ */
+  header { padding: 34px 0 0; }
+  .bar { display: flex; align-items: center; justify-content: space-between; }
+
+  .wordmark {
+    font-family: var(--serif);
+    font-size: 23px;
+    letter-spacing: 0.01em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .wordmark svg { display: block; }
+  .wordmark em { font-style: italic; color: var(--copper-bright); }
+
+  /* the seal; the one shape with no corners */
+  .seal {
+    width: 88px; height: 88px;
+    border-radius: 42%;
+    border: 1px solid var(--copper);
+    background: var(--panel);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 3px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .seal .lbl { font-size: 9px; letter-spacing: 0.22em; }
+  .seal .state {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 17px;
+    color: var(--copper-bright);
+  }
+  body.tripped .seal {
+    border-color: var(--ember);
+    animation: sealPulse 2.6s ease-in-out infinite;
+  }
+  body.tripped .seal .state { color: var(--ember); }
+  @keyframes sealPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(226, 121, 79, 0); }
+    50% { box-shadow: 0 0 24px 2px rgba(226, 121, 79, 0.28); }
+  }
+
+  /* ─ hero ─ */
+  .hero { padding: 76px 0 30px; }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(34px, 5vw, 54px);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    max-width: 20ch;
+  }
+  h1 em { font-style: italic; color: var(--copper-bright); }
+  .hero p {
+    margin-top: 18px;
+    color: var(--moss);
+    font-size: 16px;
+    max-width: 52ch;
+  }
+
+  /* the stat band; one surface with hairline joints, not three boxes */
+  .statband {
+    margin-top: 46px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    border-radius: 22px 6px 22px 6px;
+    overflow: hidden;
+  }
+  .stat { padding: 24px 28px; }
+  .stat + .stat { border-left: 1px solid var(--hairline); }
+  .stat .value {
+    margin-top: 10px;
+    font-family: var(--serif);
+    font-size: 32px;
+    color: var(--bone);
+  }
+  .stat .value.copper { color: var(--copper-bright); }
+  .stat .hint { margin-top: 4px; font-size: 12.5px; color: var(--moss); }
+
+  /* ─ trip banner; hidden until something trips ─ */
+  .banner {
+    display: none;
+    margin-top: 26px;
+    padding: 16px 26px;
+    background: rgba(226, 121, 79, 0.08);
+    border: 1px solid rgba(226, 121, 79, 0.55);
+    clip-path: polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px);
+    color: var(--bone);
+    font-size: 14.5px;
+  }
+  body.tripped .banner { display: block; animation: rise 0.4s ease-out both; }
+  .banner strong { color: var(--ember); font-weight: 600; }
+  .banner .num { color: var(--copper-bright); }
+
+  /* ─ sections ─ */
+  section { margin-top: 72px; }
+  .section-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 22px; gap: 20px; flex-wrap: wrap;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 24px;
+    letter-spacing: 0.005em;
+  }
+  .section-head .note { color: var(--moss); font-size: 13.5px; }
+
+  /* ─ account cards; three silhouettes, one shape language ─ */
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+
+  .card { background: var(--panel); position: relative; }
+  .card .inner { padding: 24px 24px 22px; }
+
+  /* pcb pad; opposite corners cut at 45 degrees */
+  .card--pad {
+    clip-path: polygon(26px 0, 100% 0, 100% calc(100% - 26px), calc(100% - 26px) 100%, 0 100%, 0 26px);
+    background: var(--hairline);
+    padding: 1px;
+  }
+  .card--pad > .inner {
+    clip-path: polygon(26px 0, 100% 0, 100% calc(100% - 26px), calc(100% - 26px) 100%, 0 100%, 0 26px);
+    background: var(--panel);
+    height: 100%;
+  }
+
+  /* petal; large radius on opposite corners, tight on the others */
+  .card--petal { border: 1px solid var(--hairline); border-radius: 46px 18px 46px 18px; }
+
+  /* folded ticket; one diagonal corner cut */
+  .card--fold {
+    clip-path: polygon(0 0, calc(100% - 30px) 0, 100% 30px, 100% 100%, 0 100%);
+    background: var(--hairline);
+    padding: 1px;
+  }
+  .card--fold > .inner {
+    clip-path: polygon(0 0, calc(100% - 30px) 0, 100% 30px, 100% 100%, 0 100%);
+    background: var(--panel);
+    height: 100%;
+  }
+
+  .card .name { font-family: var(--serif); font-size: 19px; margin-top: 12px; }
+  .card .role { font-size: 12.5px; color: var(--moss); margin-top: 2px; }
+  .card .spend { margin-top: 16px; font-family: var(--mono); font-size: 22px; }
+  .card .spend small { font-size: 12px; color: var(--moss); margin-left: 8px; font-family: var(--sans); }
+  .spark { margin-top: 14px; display: block; }
+  .cardfoot { margin-top: 14px; display: flex; align-items: center; justify-content: space-between; }
+
+  /* tags; hex cuts instead of pills */
+  .tag {
+    display: inline-block;
+    clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 9px 100%, 0 50%);
+    background: var(--panel-raised);
+    border: 1px solid var(--hairline);
+    color: var(--moss);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 18px;
+  }
+  .tag.warn { color: var(--copper-bright); border-color: rgba(201, 142, 95, 0.5); }
+  .tag.trip { color: var(--ember); border-color: rgba(226, 121, 79, 0.6); background: rgba(226, 121, 79, 0.08); }
+
+  /* ─ breaker panel; gauge and log ─ */
+  .breaker {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 20px;
+  }
+
+  .gaugebox {
+    border: 1px solid var(--hairline);
+    border-radius: 18px 46px 18px 46px;
+    background: var(--panel);
+    padding: 28px;
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+  }
+  .ring { position: relative; width: 170px; height: 170px; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring .track { stroke: var(--hairline); }
+  .ring .fill {
+    stroke: var(--copper);
+    transition: stroke-dashoffset 0.5s ease-out, stroke 0.3s ease;
+  }
+  .ring.hot .fill { stroke: var(--copper-bright); }
+  body.tripped .ring .fill { stroke: var(--ember); }
+  .ring .center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  }
+  .ring .pct { font-family: var(--serif); font-size: 30px; }
+  .ring .pctsub { font-size: 11px; color: var(--moss); letter-spacing: 0.14em; text-transform: uppercase; }
+  .gaugelegend { font-size: 12.5px; color: var(--moss); text-align: center; }
+  .gaugelegend .num { color: var(--bone); }
+
+  .logbox {
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    clip-path: polygon(22px 0, 100% 0, 100% 100%, 0 100%, 0 22px);
+    padding: 1px;
+  }
+  .logbox > .inner {
+    clip-path: polygon(22px 0, 100% 0, 100% 100%, 0 100%, 0 22px);
+    background: var(--panel);
+    height: 100%;
+    padding: 22px 24px;
+    display: flex; flex-direction: column;
+  }
+  .log {
+    margin-top: 14px;
+    flex: 1;
+    overflow-y: auto;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.9;
+    max-height: 300px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--hairline) transparent;
+  }
+  .log .line { white-space: pre-wrap; color: var(--moss); }
+  .log .line.allow { color: var(--moss); }
+  .log .line.warn { color: var(--copper-bright); }
+  .log .line.trip { color: var(--ember); font-weight: 600; }
+  .log .line.blocked { color: var(--copper); }
+  .log .line.sys { color: var(--hairline); color: #5c7568; }
+
+  /* the asymmetric stadium button; capsule leading edge, squared trailing edge */
+  .btn {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--copper);
+    color: var(--copper-bright);
+    font-family: var(--sans);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    padding: 10px 26px 10px 22px;
+    border-radius: 999px 14px 14px 999px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .btn:hover { background: var(--copper); color: var(--spruce); }
+
+  /* ─ policy; cue as data ─ */
+  .policy {
+    border: 1px solid var(--hairline);
+    border-radius: 52px 20px 52px 20px;
+    background: var(--panel);
+    padding: 30px 36px;
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 36px;
+    align-items: center;
+  }
+  .policy pre {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.85;
+    color: var(--moss);
+    overflow-x: auto;
+  }
+  .policy pre .k { color: var(--copper-bright); }
+  .policy pre .v { color: var(--bone); }
+  .policy pre .c { color: #5c7568; }
+  .policy .aside p { color: var(--moss); font-size: 13.5px; margin-top: 12px; }
+  .policy .aside h3 { font-family: var(--serif); font-weight: 400; font-size: 19px; }
+
+  /* ─ footer ─ */
+  footer {
+    margin-top: 84px;
+    border-top: 1px solid var(--hairline);
+    padding: 28px 0 44px;
+    display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+    color: var(--moss);
+    font-size: 13px;
+  }
+  footer em { font-family: var(--serif); font-style: italic; color: var(--bone); }
+
+  @media (max-width: 900px) {
+    .cards { grid-template-columns: 1fr; }
+    .breaker { grid-template-columns: 1fr; }
+    .statband { grid-template-columns: 1fr; }
+    .stat + .stat { border-left: none; border-top: 1px solid var(--hairline); }
+    .policy { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <div class="bar">
+    <div class="wordmark rise d1">
+      <svg width="20" height="20" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M18 2 L7 18 h7 l-2 12 L25 12 h-8 z" fill="#C98E5F"/>
+      </svg>
+      <span><em>Killowatt</em></span>
+    </div>
+    <div class="seal rise d2" id="seal">
+      <span class="lbl">breaker</span>
+      <span class="state" id="sealState">closed</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="hero">
+    <h1 class="rise d2">The quiet circuit breaker for <em>cloud spend</em>.</h1>
+    <p class="rise d3">
+      Budget alerts tell you after the money is gone. Killowatt watches the
+      current live and cuts the circuit before; this page replays a real
+      incident shape, a runaway retry loop, against a real policy.
+    </p>
+
+    <div class="statband rise d4">
+      <div class="stat">
+        <span class="lbl">simulated spend today</span>
+        <div class="value num" id="statSpent">$0.00</div>
+        <div class="hint" id="simTime">t+00:00</div>
+      </div>
+      <div class="stat">
+        <span class="lbl">prevented by the breaker</span>
+        <div class="value num copper" id="statPrevented">$0.00</div>
+        <div class="hint">everything refused after the trip</div>
+      </div>
+      <div class="stat">
+        <span class="lbl">burst window, acme-prod</span>
+        <div class="value num" id="statBurst">0%</div>
+        <div class="hint">$40.00 allowed per 10 minutes</div>
+      </div>
+    </div>
+
+    <div class="banner" id="banner">
+      <strong>hard stop active</strong> on acme-prod → durable-objects suspended;
+      the breaker has refused <span class="num" id="bannerPrevented">$0.00</span> of charges since the trip.
+    </div>
+  </div>
+
+  <section>
+    <div class="section-head rise d3">
+      <h2>Accounts on the wire</h2>
+      <span class="note">one watcher per account; three shapes, one family</span>
+    </div>
+    <div class="cards">
+
+      <div class="card card--pad rise d3">
+        <div class="inner">
+          <span class="lbl">production</span>
+          <div class="name">acme-prod</div>
+          <div class="role">api, durable objects, backups</div>
+          <div class="spend num" id="acmeSpend">$0.00<small>today</small></div>
+          <svg class="spark" id="acmeSpark" width="100%" height="38" viewBox="0 0 240 38" preserveAspectRatio="none"></svg>
+          <div class="cardfoot">
+            <span class="tag" id="acmeTag">calm</span>
+            <span class="lbl" style="font-size:9px">policy · hard_stop</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card--petal rise d4">
+        <div class="inner">
+          <span class="lbl">staging</span>
+          <div class="name">staging</div>
+          <div class="role">web app, preview builds</div>
+          <div class="spend num" id="stagingSpend">$0.00<small>today</small></div>
+          <svg class="spark" id="stagingSpark" width="100%" height="38" viewBox="0 0 240 38" preserveAspectRatio="none"></svg>
+          <div class="cardfoot">
+            <span class="tag">calm</span>
+            <span class="lbl" style="font-size:9px">policy · alert_only</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card--fold rise d5">
+        <div class="inner">
+          <span class="lbl">platform</span>
+          <div class="name">infra-core</div>
+          <div class="role">queue workers, shared services</div>
+          <div class="spend num" id="infraSpend">$0.00<small>today</small></div>
+          <svg class="spark" id="infraSpark" width="100%" height="38" viewBox="0 0 240 38" preserveAspectRatio="none"></svg>
+          <div class="cardfoot">
+            <span class="tag">calm</span>
+            <span class="lbl" style="font-size:9px">policy · throttle</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head rise d4">
+      <h2>The breaker, live</h2>
+      <button class="btn" id="resetBtn">replay the incident</button>
+    </div>
+    <div class="breaker">
+
+      <div class="gaugebox rise d4">
+        <span class="lbl">burst window fill</span>
+        <div class="ring" id="ring">
+          <svg width="170" height="170" viewBox="0 0 170 170">
+            <circle class="track" cx="85" cy="85" r="72" fill="none" stroke-width="7"/>
+            <circle class="fill" id="ringFill" cx="85" cy="85" r="72" fill="none" stroke-width="7"
+              stroke-linecap="round" stroke-dasharray="452.4" stroke-dashoffset="452.4"/>
+          </svg>
+          <div class="center">
+            <span class="pct num" id="ringPct">0%</span>
+            <span class="pctsub">of $40.00</span>
+          </div>
+        </div>
+        <div class="gaugelegend">
+          <span class="num" id="legendSpend">$0.00</span> spent in the last 10 simulated minutes;
+          at 100% the breaker trips and the account goes quiet.
+        </div>
+      </div>
+
+      <div class="logbox rise d5">
+        <div class="inner">
+          <span class="lbl">verdict stream</span>
+          <div class="log" id="log">
+            <div class="line sys">killowatt; watching acme-prod, staging, infra-core</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head rise d5">
+      <h2>The policy that trips it</h2>
+      <span class="note">cue, validated before it ships; money in integer cents</span>
+    </div>
+    <div class="policy rise d5">
+      <pre><span class="k">acme:</span> <span class="v">#Policy</span> &amp; {
+  account:           <span class="v">"acme-prod"</span>
+  daily_limit_cents: <span class="v">250_00</span>   <span class="c">// $250.00 a day</span>
+  hourly_limit_cents: <span class="v">60_00</span>   <span class="c">// $60.00 an hour</span>
+  burst: {
+    window_seconds:  <span class="v">600</span>
+    limit_cents:     <span class="v">40_00</span>    <span class="c">// retry storms land here first</span>
+  }
+  action:            <span class="v">"hard_stop"</span>
+  exempt:            [<span class="v">"rds-prod-backups"</span>]
+}</pre>
+      <div class="aside">
+        <h3>Three windows, in order.</h3>
+        <p>burst catches loops within minutes; the hourly limit catches slow leaks; the daily limit is the last line. exempt services keep running through a trip, because backups should never take the blame.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span><em>killowatt;</em> the breaker, not the alarm</span>
+    <span>spruce, copper, bone · built calm</span>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var CIRC = 452.4;
+  var history = { acme: [], staging: [], infra: [] };
+
+  function $(id) { return document.getElementById(id); }
+
+  function money(cents) {
+    return "$" + Math.floor(cents / 100) + "." + String(cents % 100).padStart(2, "0");
+  }
+
+  function setRing(pct, tripped) {
+    var capped = Math.min(pct, 100);
+    $("ringFill").style.strokeDashoffset = String(CIRC * (1 - capped / 100));
+    $("ringPct").textContent = Math.round(pct) + "%";
+    $("ring").classList.toggle("hot", pct >= 75 && !tripped);
+  }
+
+  function drawSpark(id, points, tripped) {
+    var svg = $(id);
+    if (!points.length) { svg.innerHTML = ""; return; }
+    var max = Math.max.apply(null, points.concat([20]));
+    var step = 240 / Math.max(points.length - 1, 1);
+    var coords = points.map(function (p, i) {
+      var x = i * step;
+      var y = 36 - (p / max) * 32;
+      return x.toFixed(1) + "," + y.toFixed(1);
+    });
+    var color = tripped ? "#E2794F" : "#C98E5F";
+    svg.innerHTML =
+      '<polyline points="' + coords.join(" ") + '" fill="none" stroke="' + color +
+      '" stroke-width="1.6" stroke-linejoin="round" opacity="0.85"/>';
+  }
+
+  function pushHistory(key, val) {
+    history[key].push(val);
+    if (history[key].length > 48) history[key].shift();
+  }
+
+  var logEl = $("log");
+  function appendLogs(logs) {
+    logs.forEach(function (l) {
+      var div = document.createElement("div");
+      div.className = "line " + l.cls;
+      div.textContent = l.text;
+      logEl.appendChild(div);
+    });
+    while (logEl.children.length > 80) logEl.removeChild(logEl.firstChild);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function applyFrame(frame) {
+    var s = frame.state;
+    document.body.classList.toggle("tripped", s.accounts[0].tripped);
+
+    $("simTime").textContent = s.sim_time;
+    $("statSpent").textContent = money(s.totals.spent);
+    $("statPrevented").textContent = money(s.totals.prevented);
+    $("statBurst").textContent = s.accounts[0].burst_pct + "%";
+    $("bannerPrevented").textContent = money(s.totals.prevented);
+
+    var acme = s.accounts[0];
+    $("acmeSpend").innerHTML = money(acme.spent) + "<small>today</small>";
+    $("stagingSpend").innerHTML = money(s.accounts[1].spent) + "<small>today</small>";
+    $("infraSpend").innerHTML = money(s.accounts[2].spent) + "<small>today</small>";
+
+    setRing(acme.burst_pct, acme.tripped);
+    $("legendSpend").textContent = money(Math.round(acme.burst_pct / 100 * 4000));
+
+    var tag = $("acmeTag");
+    if (acme.tripped) {
+      tag.textContent = "open → stopped"; tag.className = "tag trip";
+    } else if (acme.burst_pct >= 75) {
+      tag.textContent = "approaching"; tag.className = "tag warn";
+    } else {
+      tag.textContent = "calm"; tag.className = "tag";
+    }
+
+    $("sealState").textContent = acme.tripped ? "open" : "closed";
+
+    pushHistory("acme", acme.tick_cents);
+    pushHistory("staging", s.accounts[1].tick_cents);
+    pushHistory("infra", s.accounts[2].tick_cents);
+    drawSpark("acmeSpark", history.acme, acme.tripped);
+    drawSpark("stagingSpark", history.staging, false);
+    drawSpark("infraSpark", history.infra, false);
+
+    if (frame.logs && frame.logs.length) appendLogs(frame.logs);
+  }
+
+  function reset() {
+    history = { acme: [], staging: [], infra: [] };
+    logEl.innerHTML = '<div class="line sys">killowatt; replaying the incident from the top</div>';
+    document.body.classList.remove("tripped");
+  }
+
+  var es = new EventSource("/api/stream");
+  es.onmessage = function (ev) {
+    var frame = JSON.parse(ev.data);
+    if (frame.type === "frame") applyFrame(frame);
+    if (frame.type === "reset") reset();
+  };
+
+  $("resetBtn").addEventListener("click", function () {
+    fetch("/api/reset", { method: "POST" });
+  });
+})();
+</script>
+
+</body>
+</html>
