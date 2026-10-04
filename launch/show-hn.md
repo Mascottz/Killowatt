@@ -20,5 +20,6 @@ https://github.com/Mascottz/Killowatt
 ## after posting
 
 - stay in the thread for the first two hours; answer everything
+- if a comment asks for the longer story, the canonical write-up is live; https://dev.to/mascottz/i-built-a-circuit-breaker-for-runaway-cloud-spend-ka6
 - if a question lands about provider x, the answer is the adapter shape in contributing.md, and an issue is already open for it
 - do not edit the title after posting unless it is broken
