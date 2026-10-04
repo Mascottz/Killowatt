@@ -110,7 +110,7 @@ t+20:00   summary spent, untouched $333.72; would have saved $209.94
 
 ## where this goes next
 
-- the live metering poller is scaffolded in the watcher with a fake producer and a cloudflare client; it wakes up the day a real token shows up
+- the live metering poller is live for cloudflare; the aws side wakes up the day an access key shows up
 - anomaly scoring on top of the plain thresholds; julia service, later
 - the rest is credentials; both live adapters and the poller are waiting on tokens, not code
 
