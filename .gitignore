@@ -1,0 +1,15 @@
+# rust
+core/target/
+core/Cargo.lock.bak
+
+# elixir
+watcher/_build/
+watcher/deps/
+watcher/*.beam
+watcher/erl_crash.dump
+
+# node
+web/node_modules/
+
+# os junk
+.DS_Store
