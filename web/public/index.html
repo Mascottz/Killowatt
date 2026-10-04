@@ -147,7 +147,7 @@
   .stat .value.copper { color: var(--copper-bright); }
   .stat .hint { margin-top: 4px; font-size: 12.5px; color: var(--moss); }
 
-  /* ─ trip banner; hidden until something trips ─ */
+  /* ─ banners; the trip banner is ember, the watch banner is copper ─ */
   .banner {
     display: none;
     margin-top: 26px;
@@ -161,6 +161,32 @@
   body.tripped .banner { display: block; animation: rise 0.4s ease-out both; }
   .banner strong { color: var(--ember); font-weight: 600; }
   .banner .num { color: var(--copper-bright); }
+
+  .banner--watch {
+    background: rgba(201, 142, 95, 0.08);
+    border-color: rgba(201, 142, 95, 0.55);
+  }
+  .banner--watch strong { color: var(--copper-bright); }
+  body.tripped .banner--watch { display: none; }
+  body.watchhit .banner--watch { display: block; animation: rise 0.4s ease-out both; }
+
+  /* ─ posture switch; two hex-cut keys, one lit ─ */
+  .modes { display: flex; align-items: center; gap: 14px; margin-top: 34px; flex-wrap: wrap; }
+  .mode-btn {
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+    border: 1px solid var(--hairline);
+    color: var(--moss);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    padding: 9px 22px;
+    clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 9px 100%, 0 50%);
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+  .mode-btn:hover { color: var(--bone); border-color: var(--copper); }
+  .mode-btn.active { background: var(--copper); border-color: var(--copper); color: var(--spruce); }
 
   /* ─ sections ─ */
   section { margin-top: 72px; }
@@ -386,6 +412,13 @@
       incident shape, a runaway retry loop, against a real policy.
     </p>
 
+    <div class="modes rise d4">
+      <span class="lbl">posture</span>
+      <button class="mode-btn active" id="modeArmed">armed</button>
+      <button class="mode-btn" id="modeWatch">watch mode</button>
+      <span class="note" style="color:var(--moss); font-size:13px">watch sees everything, touches nothing; armed cuts the circuit</span>
+    </div>
+
     <div class="statband rise d4">
       <div class="stat">
         <span class="lbl">simulated spend today</span>
@@ -393,9 +426,9 @@
         <div class="hint" id="simTime">t+00:00</div>
       </div>
       <div class="stat">
-        <span class="lbl">prevented by the breaker</span>
+        <span class="lbl" id="statSavedLabel">prevented by the breaker</span>
         <div class="value num copper" id="statPrevented">$0.00</div>
-        <div class="hint">everything refused after the trip</div>
+        <div class="hint" id="statSavedHint">everything refused after the trip</div>
       </div>
       <div class="stat">
         <span class="lbl">burst window, acme-prod</span>
@@ -407,6 +440,12 @@
     <div class="banner" id="banner">
       <strong>hard stop active</strong> on acme-prod → durable-objects suspended;
       the breaker has refused <span class="num" id="bannerPrevented">$0.00</span> of charges since the trip.
+    </div>
+
+    <div class="banner banner--watch" id="watchBanner">
+      <strong>watch mode</strong> on acme-prod → nothing touched; killowatt would have refused
+      <span class="num" id="watchSaved">$0.00</span> of charges so far. this is the report you show
+      before anyone hands you the kill switch.
     </div>
   </div>
 
@@ -586,13 +625,28 @@
 
   function applyFrame(frame) {
     var s = frame.state;
+    currentMode = s.mode || currentMode;
+    var watchMode = currentMode === "alert_only";
+    setModeButtons(currentMode);
+
     document.body.classList.toggle("tripped", s.accounts[0].tripped);
+    document.body.classList.toggle("watchhit", watchMode && s.accounts[0].watching);
 
     $("simTime").textContent = s.sim_time;
     $("statSpent").textContent = money(s.totals.spent);
-    $("statPrevented").textContent = money(s.totals.prevented);
     $("statBurst").textContent = s.accounts[0].burst_pct + "%";
-    $("bannerPrevented").textContent = money(s.totals.prevented);
+
+    if (watchMode) {
+      $("statSavedLabel").textContent = "would have saved, watch mode";
+      $("statPrevented").textContent = money(s.totals.saved);
+      $("statSavedHint").textContent = "nothing refused; everything noted";
+      $("watchSaved").textContent = money(s.totals.saved);
+    } else {
+      $("statSavedLabel").textContent = "prevented by the breaker";
+      $("statPrevented").textContent = money(s.totals.prevented);
+      $("statSavedHint").textContent = "everything refused after the trip";
+      $("bannerPrevented").textContent = money(s.totals.prevented);
+    }
 
     var acme = s.accounts[0];
     $("acmeSpend").innerHTML = money(acme.spent) + "<small>today</small>";
@@ -605,13 +659,16 @@
     var tag = $("acmeTag");
     if (acme.tripped) {
       tag.textContent = "open → stopped"; tag.className = "tag trip";
+    } else if (watchMode && acme.watching) {
+      tag.textContent = "watching → would stop"; tag.className = "tag warn";
     } else if (acme.burst_pct >= 75) {
       tag.textContent = "approaching"; tag.className = "tag warn";
     } else {
       tag.textContent = "calm"; tag.className = "tag";
     }
 
-    $("sealState").textContent = acme.tripped ? "open" : "closed";
+    // the seal shows the posture; ember belongs to a real trip only
+    $("sealState").textContent = watchMode ? "watching" : (acme.tripped ? "open" : "closed");
 
     pushHistory("acme", acme.tick_cents);
     pushHistory("staging", s.accounts[1].tick_cents);
@@ -627,17 +684,38 @@
     history = { acme: [], staging: [], infra: [] };
     logEl.innerHTML = '<div class="line sys">killowatt; replaying the incident from the top</div>';
     document.body.classList.remove("tripped");
+    document.body.classList.remove("watchhit");
+  }
+
+  var currentMode = "hard_stop";
+
+  function setModeButtons(mode) {
+    $("modeArmed").classList.toggle("active", mode !== "alert_only");
+    $("modeWatch").classList.toggle("active", mode === "alert_only");
   }
 
   var es = new EventSource("/api/stream");
   es.onmessage = function (ev) {
     var frame = JSON.parse(ev.data);
     if (frame.type === "frame") applyFrame(frame);
-    if (frame.type === "reset") reset();
+    if (frame.type === "reset") {
+      currentMode = frame.mode || "hard_stop";
+      setModeButtons(currentMode);
+      reset();
+    }
   };
 
   $("resetBtn").addEventListener("click", function () {
-    fetch("/api/reset", { method: "POST" });
+    var q = currentMode === "alert_only" ? "?mode=watch" : "";
+    fetch("/api/reset" + q, { method: "POST" });
+  });
+
+  $("modeArmed").addEventListener("click", function () {
+    if (currentMode !== "hard_stop") fetch("/api/reset", { method: "POST" });
+  });
+
+  $("modeWatch").addEventListener("click", function () {
+    if (currentMode !== "alert_only") fetch("/api/reset?mode=watch", { method: "POST" });
   });
 })();
 </script>

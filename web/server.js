@@ -18,12 +18,13 @@ const RUNAWAY_CENTS = 210; // per tick, the loop billing the same request over a
 
 const clients = new Set();
 
-function makeSim() {
+function makeSim(mode) {
   return {
     t: 0,
-    acme: { ledger: [], tripped: false, warned: false, prevented: 0, spent: 0 },
-    staging: { ledger: [], tripped: false, warned: false, prevented: 0, spent: 0 },
-    infra: { ledger: [], tripped: false, warned: false, prevented: 0, spent: 0 },
+    mode: mode || "hard_stop", // hard_stop is armed; alert_only is watch mode
+    acme: { ledger: [], tripped: false, warned: false, watching: false, prevented: 0, would_have_saved: 0, spent: 0 },
+    staging: { ledger: [], tripped: false, warned: false, watching: false, prevented: 0, would_have_saved: 0, spent: 0 },
+    infra: { ledger: [], tripped: false, warned: false, watching: false, prevented: 0, would_have_saved: 0, spent: 0 },
     logs: [],
   };
 }
@@ -105,21 +106,45 @@ function tick() {
     const burst = spentSince(acme, t, WINDOW_TICKS, "rds-prod-backups");
     const hour = spentSince(acme, t, HOUR_TICKS, "rds-prod-backups");
 
-    if (burst > BURST_LIMIT) {
+    const breached =
+      burst > BURST_LIMIT
+        ? { spend: burst, limit: BURST_LIMIT, window: "burst window" }
+        : hour > HOURLY_LIMIT
+          ? { spend: hour, limit: HOURLY_LIMIT, window: "hourly limit" }
+          : null;
+
+    if (breached && sim.mode === "alert_only") {
+      // watch mode; the limit broke, nothing gets touched, and from the
+      // first breach onward every non-exempt charge is would-have-saved.
+      if (!acme.watching) {
+        acme.watching = true;
+        note(
+          "warn",
+          `${fmtSimTime(t)}  WATCH durable-objects blew the ${breached.window}; ${money(
+            breached.spend
+          )} of ${money(breached.limit)} allowed`
+        );
+        note("warn", `${fmtSimTime(t)}  note  nothing touched; killowatt would have stopped this`);
+      }
+      acme.would_have_saved += acmeTickSpend;
+      if (t % 6 === 0) {
+        note(
+          "allow",
+          `${fmtSimTime(t)}  watch still burning; would have saved ${money(acme.would_have_saved)} by now`
+        );
+      }
+    } else if (breached) {
       acme.tripped = true;
       note(
         "trip",
-        `${fmtSimTime(t)}  TRIP  durable-objects blew the burst window; ${money(burst)} of ${money(
-          BURST_LIMIT
-        )} allowed`
+        `${fmtSimTime(t)}  TRIP  durable-objects blew the ${breached.window}; ${money(
+          breached.spend
+        )} of ${money(breached.limit)} allowed`
       );
       note(
         "trip",
         `${fmtSimTime(t)}  stop  suspended durable-objects on acme-prod → action hard_stop`
       );
-    } else if (hour > HOURLY_LIMIT) {
-      acme.tripped = true;
-      note("trip", `${fmtSimTime(t)}  TRIP  hourly limit; ${money(hour)} of ${money(HOURLY_LIMIT)} allowed`);
     } else if (!acme.warned && burst >= BURST_LIMIT * 0.8) {
       acme.warned = true;
       note(
@@ -153,24 +178,28 @@ function tick() {
   const state = {
     sim_time: fmtSimTime(t),
     tick: t,
+    mode: sim.mode,
     totals: {
       spent: acme.spent + sim.staging.spent + sim.infra.spent,
       prevented: acme.prevented,
+      saved: acme.would_have_saved,
     },
     accounts: [
       {
         name: "acme-prod",
         spent: acme.spent,
         tripped: acme.tripped,
+        watching: acme.watching,
         prevented: acme.prevented,
+        would_have_saved: acme.would_have_saved,
         burst_pct: Math.min(
           140,
           Math.round((spentSince(acme, t, WINDOW_TICKS, "rds-prod-backups") / BURST_LIMIT) * 100)
         ),
         tick_cents: acme.lastTick,
       },
-      { name: "staging", spent: sim.staging.spent, tripped: false, tick_cents: sim.staging.lastTick },
-      { name: "infra-core", spent: sim.infra.spent, tripped: false, tick_cents: sim.infra.lastTick },
+      { name: "staging", spent: sim.staging.spent, tripped: false, watching: false, tick_cents: sim.staging.lastTick },
+      { name: "infra-core", spent: sim.infra.spent, tripped: false, watching: false, tick_cents: sim.infra.lastTick },
     ],
   };
 
@@ -206,11 +235,13 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (req.method === "POST" && req.url === "/api/reset") {
-    sim = makeSim();
-    broadcast({ type: "reset" });
+  if (req.method === "POST" && req.url.startsWith("/api/reset")) {
+    const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+    const mode = url.searchParams.get("mode") === "watch" ? "alert_only" : "hard_stop";
+    sim = makeSim(mode);
+    broadcast({ type: "reset", mode: sim.mode });
     res.writeHead(202, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: true }));
+    res.end(JSON.stringify({ ok: true, mode: sim.mode }));
     return;
   }
 
