@@ -37,7 +37,7 @@ the policy action sets the posture; hard_stop and throttle trip the breaker, and
 
 ## the watcher, elixir
 
-one genserver per account under a dynamic supervisor. the beam gives me per account isolation for free; account 4,312 crashing does not wake account 4,313. the watcher owns side effects; enforcement dispatch, alert delivery to slack or discord, webhooks. it never does math that the core should own. notices travel through the alerts genserver and out a sink; the sink is picked from the environment and delivery is wrapped, because a dead webhook must never take the watcher down. the watcher reads the same exported registry the core does, `policies/accounts.json`, through `Killowatt.PolicyRegistry`; one cue source, one watcher per account, and no way for the two sides to drift apart.
+one genserver per account under a dynamic supervisor. the beam gives me per account isolation for free; account 4,312 crashing does not wake account 4,313. the watcher evaluates the same three windows the core does, burst, hour, day, in the same order; the watcher owns side effects, enforcement dispatch, alert delivery to slack or discord, webhooks. it never does math that the core should own. notices travel through the alerts genserver and out a sink; the sink is picked from the environment and delivery is wrapped, because a dead webhook must never take the watcher down. the watcher reads the same exported registry the core does, `policies/accounts.json`, through `Killowatt.PolicyRegistry`; one cue source, one watcher per account, and no way for the two sides to drift apart.
 
 ## policies, cue
 

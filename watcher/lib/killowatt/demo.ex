@@ -11,14 +11,7 @@ defmodule Killowatt.Demo do
   @end_tick 600
 
   def run do
-    base = %{
-      daily_limit: 250_00,
-      hourly_limit: 60_00,
-      burst_window_ms: 600_000,
-      burst_limit: 40_00,
-      exempt: ["rds-prod-backups"],
-      action: "hard_stop"
-    }
+    base = Killowatt.PolicyRegistry.load!()["acme-prod"]
 
     {:ok, _} = Killowatt.Accounts.start_account("acme-armed", base)
     {:ok, _} = Killowatt.Accounts.start_account("acme-watch", Map.put(base, :action, "alert_only"))

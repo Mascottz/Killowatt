@@ -10,6 +10,7 @@ defmodule Killowatt.AccountWatcher do
   use GenServer
 
   @hour_ms 3_600_000
+  @day_ms 86_400_000
 
   def start_link({account, policy, opts}) do
     GenServer.start_link(__MODULE__, {account, policy, opts}, name: via(account))
@@ -51,6 +52,7 @@ defmodule Killowatt.AccountWatcher do
         s = %{s | ledger: ledger}
         burst = spent(ledger, event.at_ms, s.policy.burst_window_ms, s.policy)
         hour = spent(ledger, event.at_ms, @hour_ms, s.policy)
+        day = spent(ledger, event.at_ms, @day_ms, s.policy)
 
         breach =
           cond do
@@ -59,6 +61,9 @@ defmodule Killowatt.AccountWatcher do
 
             hour > s.policy.hourly_limit ->
               {hour, s.policy.hourly_limit, "hourly limit"}
+
+            day > s.policy.daily_limit ->
+              {day, s.policy.daily_limit, "daily limit"}
 
             true ->
               nil
@@ -143,7 +148,7 @@ defmodule Killowatt.AccountWatcher do
   end
 
   defp prune(ledger, now_ms) do
-    horizon = now_ms - @hour_ms
+    horizon = now_ms - @day_ms
     Enum.filter(ledger, fn e -> e.at_ms >= horizon end)
   end
 
