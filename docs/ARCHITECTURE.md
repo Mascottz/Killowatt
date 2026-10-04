@@ -47,10 +47,19 @@ policies are data, validated at build time. `cue vet` before deploy, `cue export
 
 `proto/killowatt.proto` is the wire contract between core, watcher, and anything else that shows up later. if a field is not in the proto it does not exist.
 
+## metering
+
+the core consumes one event shape; account, service, cents, timestamp. two producers exist today;
+
+- the built-in sim, for the demo
+- `ingest`, which replays a billing export in that shape; real bills, same treatment, see docs/METERING.md
+
+the live poller is scaffolded in the watcher where side effects live; it speaks the client contract, ships with a fake producer for offline runs and a cloudflare graphql client, and it wakes up the day a provider token shows up.
+
 ## what is a demo vs what is real
 
 honest status;
 
-- real; the ledger, the policy evaluation, the trip logic, the cue schema, the contracts
-- demo; the usage source is simulated; the enforcement action is a log line, not a cloud call
-- next; aws cost and usage into the core, then real suspend actions via the rust sdk
+- real; the ledger, the policy evaluation, the trip logic, watch mode, the ingest path for real billing exports, the cue schema, the contracts
+- demo; the built-in usage source is simulated; the enforcement action is a log line, not a cloud call
+- next; the live metering poller, then real suspend actions via the rust sdk
