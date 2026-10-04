@@ -18,6 +18,14 @@ const RUNAWAY_CENTS = 210; // per tick, the loop billing the same request over a
 
 const clients = new Set();
 
+// zero deps means a zero-dep static table too.
+const STATIC = {
+  "/": ["index.html", "text/html; charset=utf-8"],
+  "/index.html": ["index.html", "text/html; charset=utf-8"],
+  "/style.css": ["style.css", "text/css; charset=utf-8"],
+  "/app.js": ["app.js", "text/javascript; charset=utf-8"],
+};
+
 function makeSim(mode) {
   return {
     t: 0,
@@ -217,9 +225,10 @@ setInterval(() => {
 }, 15000);
 
 const server = http.createServer((req, res) => {
-  if (req.method === "GET" && (req.url === "/" || req.url === "/index.html")) {
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(fs.readFileSync(path.join(__dirname, "public", "index.html")));
+  if (req.method === "GET" && STATIC[req.url]) {
+    const [file, type] = STATIC[req.url];
+    res.writeHead(200, { "Content-Type": type });
+    res.end(fs.readFileSync(path.join(__dirname, "public", file)));
     return;
   }
 

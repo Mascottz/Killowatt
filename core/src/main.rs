@@ -1,23 +1,7 @@
-mod breaker;
-mod ledger;
-mod metering;
-mod policy;
-mod report;
-mod sim;
-
 use std::path::Path;
 use std::process::ExitCode;
 
-// money prints from integer cents; no floats anywhere near money.
-pub fn money(cents: u64) -> String {
-    format!("${}.{:02}", cents / 100, cents % 100)
-}
-
-// t+mm:ss for log lines.
-pub fn fmt_t(ms: u64) -> String {
-    let secs = ms / 1000;
-    format!("t+{:02}:{:02}", secs / 60, secs % 60)
-}
+use killowatt_core::{metering, money, policy, report, sim};
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();

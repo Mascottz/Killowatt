@@ -18,7 +18,7 @@ that shape is the contract. any provider, any export, any granularity; if you ca
 cargo run --release -- ingest metering/sample-bill.jsonl
 ```
 
-`metering/sample-bill.jsonl` is three hours of minute-level charges for acme-prod with a durable objects retry loop starting at minute 95, plus some staging noise to prove the filtering. armed, the breaker trips on the hourly limit at t+101 after $63.13 spent and prevents $392.21; in watch mode the same export would have saved $397.14. slower leaks trip on the hour, fast loops trip on the burst; whichever window breaks first is the one that gets reported.
+`metering/sample-bill.jsonl` is two and a half hours of five-minute buckets for acme-prod with a durable objects retry loop starting at minute 95, plus some staging noise to prove the filtering. armed, the breaker trips on the burst window at t+100 after $52.61 spent and prevents $226.43; in watch mode the same export would have saved $249.89. slower leaks trip on the hour, fast loops trip on the burst; whichever window breaks first is the one that gets reported.
 
 ## getting your real bill into the shape
 
@@ -48,6 +48,6 @@ the live path. a poller that hits provider apis on a schedule and emits these ev
 
 ## granularity notes
 
-- the burst window is 600s by default, so minute-level data is the floor for burst detection; hourly exports still trip, but on the hourly and daily windows
+- the burst window is 600s by default, so bucket resolution matters; five minute buckets still catch a loop, hourly exports still trip, but on the hourly and daily windows
 - one event per service per bucket is the sweet spot; more granularity is fine, less loses the loop signal
 - clocks are provider clocks; the replay does not care about wall time, only ordering and spacing
