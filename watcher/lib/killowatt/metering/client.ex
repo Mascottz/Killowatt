@@ -39,15 +39,16 @@ defmodule Killowatt.Metering.CloudflareClient do
   CLOUDFLARE_ACCOUNT_TAG. the cursor is an hour index starting at midnight
   utc today, so each poll meters one closed hour.
 
-  the query targets the durable objects dataset; confirm the dataset and
-  field names against your account's schema before you arm anything, because
-  cloudflare ships new datasets regularly.
+  the query targets durableObjectsInvocationsAdaptiveGroups and groups by
+  script name, so each worker meters as its own service. dataset and field
+  names verified against the live schema on 2026-10-04; cloudflare ships
+  new datasets regularly, so if this breaks, re-run scripts/probe-cf-schema.sh.
   """
   @behaviour Killowatt.Metering.Client
 
   @endpoint ~c"https://api.cloudflare.com/client/v4/graphql"
 
-  # placeholder price in cents per million operations; replace with the
+  # placeholder price in cents per million invocations; replace with the
   # published pricing for your plan before you trust the dollars.
   @do_cents_per_million_ops 50
 
@@ -55,10 +56,11 @@ defmodule Killowatt.Metering.CloudflareClient do
   query ($accountTag: string!, $since: Time!, $until: Time!) {
     viewer {
       accounts(filter: { accountTag: $accountTag }) {
-        durableObjectsPeriodGroups(
+        durableObjectsInvocationsAdaptiveGroups(
           limit: 1000
-          filter: { datetime_geq: $since, datetime_lt: $until }
+          filter: { datetimeHour_geq: $since, datetimeHour_lt: $until }
         ) {
+          dimensions { scriptName }
           sum { requests }
         }
       }
@@ -71,10 +73,21 @@ defmodule Killowatt.Metering.CloudflareClient do
     with {:ok, token} <- env("CLOUDFLARE_API_TOKEN"),
          {:ok, account_tag} <- env("CLOUDFLARE_ACCOUNT_TAG"),
          {:ok, body} <- post(token, account_tag, cursor),
-         {:ok, ops} <- extract_ops(body) do
-      cents = div(ops * @do_cents_per_million_ops, 1_000_000)
-      {:ok, [%{service: "durable-objects", cents: cents}], cursor + 1}
+         {:ok, events} <- parse(body) do
+      {:ok, events, cursor + 1}
     end
+  end
+
+  @doc "turn a graphql response body into metered events; pure, and pinned by tests"
+  def parse(body) when is_binary(body) do
+    decoded = :json.decode(body)
+
+    case get_in(decoded, ["errors"]) do
+      [err | _] -> {:error, {:graphql, err["message"]}}
+      _ -> {:ok, groups_to_events(decoded)}
+    end
+  rescue
+    e -> {:error, {:parse, Exception.message(e)}}
   end
 
   defp env(name) do
@@ -108,26 +121,24 @@ defmodule Killowatt.Metering.CloudflareClient do
     end
   end
 
-  defp extract_ops(body) do
-    decoded = :json.decode(body)
-
+  defp groups_to_events(decoded) do
     groups =
       get_in(decoded, ["data", "viewer", "accounts"])
       |> List.wrap()
       |> List.first()
       |> case do
         nil -> []
-        account -> account["durableObjectsPeriodGroups"] || []
+        account -> account["durableObjectsInvocationsAdaptiveGroups"] || []
       end
 
-    ops =
-      groups
-      |> Enum.map(fn g -> get_in(g, ["sum", "requests"]) || 0 end)
-      |> Enum.sum()
-
-    {:ok, ops}
-  rescue
-    e -> {:error, {:parse, Exception.message(e)}}
+    groups
+    |> Enum.map(fn g ->
+      %{
+        service: get_in(g, ["dimensions", "scriptName"]) || "durable-objects",
+        cents: div((get_in(g, ["sum", "requests"]) || 0) * @do_cents_per_million_ops, 1_000_000)
+      }
+    end)
+    |> Enum.reject(fn e -> e.cents == 0 end)
   end
 
   defp hour_iso(hour_index) do

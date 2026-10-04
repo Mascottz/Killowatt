@@ -40,11 +40,29 @@ for row in csv.DictReader(open("cur-export.csv")):
 EOF
 ```
 
-cloudflare; the graphql analytics api gives usage counts for workers and durable objects, and the $34k incidents live in those counts. multiply operations by the published per-operation price, bucket per minute, and emit the same shape. usage in, dollars out, same contract.
+cloudflare; the graphql analytics api gives usage counts for workers and durable objects, and the $34k incidents live in those counts. the watcher's live client meters `durableObjectsInvocationsAdaptiveGroups` straight from graphql, one event per script name, operations in, cents out, same contract.
 
-## what needs credentials
+## the live cloudflare path
 
-the live path. a poller that hits provider apis on a schedule and emits these events continuously, instead of replaying an export. the design is already set; the poller is just another producer of the same event shape, and it belongs in the watcher where side effects live. the gate is a token in an environment variable, and it is the next thing to build the moment one shows up.
+the poller is live and verified against a real account. set these in the environment:
+
+```bash
+export CLOUDFLARE_API_TOKEN="..."     # workers scripts edit + analytics read
+export CLOUDFLARE_ACCOUNT_TAG="..."   # the account's tag; usually the account id
+```
+
+then verify everything read-only, and run the probe;
+
+```bash
+scripts/check-cloudflare.sh           # token, accounts, workers list, the metering query
+cd watcher && mix run ../scripts/probe-live.exs   # the real poller, a few closed hours
+```
+
+the check script detects the account the token can actually see and tells you if `CLOUDFLARE_ACCOUNT_ID` points somewhere else. the dataset and field names were verified against the live schema on 2026-10-04; if cloudflare drifts the schema again, `scripts/probe-cf-schema.sh` dumps the current shape. pricing is a placeholder constant in the client, cents per million invocations; set it to your plan's published number before you trust the dollars.
+
+## what still needs credentials
+
+the aws side. the scale-to-zero adapter is built and its signer is verified, but live enforcement waits on an access key; see the readme for the exact env vars and the least-privilege policy.
 
 ## granularity notes
 
