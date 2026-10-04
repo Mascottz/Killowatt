@@ -28,7 +28,7 @@ the rule that keeps it calm; ember appears nowhere in the resting ui. a calm scr
 
 the trace k. the initial routed like a pcb trace; a vertical stem, two arms bent at exactly 45 degrees, terminal pads at every open end, and a ring node where the arms meet the stem. copper hairlines on spruce, always; no fills where a line will do.
 
-weight scales with size; at favicon sizes the joint node drops out and the strokes and pads go heavier so it stays legible at 16px. source files live in `logo/`; `mark.svg`, `mark-16.svg`, `lockup.svg`, with the studies that lost in `gallery.html`.
+weight scales with size; at favicon sizes the joint node drops out and the strokes and pads go heavier so it stays legible at 16px. source files live in `logo/`; `mark.svg`, `mark-16.svg`, `lockup.svg`. the studies that lost were retired from the tree when the trace k won; they live on in git history, in the commit that added them.
 
 ## shape language
 
