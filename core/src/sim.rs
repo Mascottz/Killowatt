@@ -1,3 +1,4 @@
+use crate::enforce::{DryRun, Enforcer};
 use crate::ledger::Event;
 use crate::policy::Policy;
 use crate::report;
@@ -55,20 +56,21 @@ pub fn run() {
     }
 
     let events = build_events();
+    let mut enforcer: Box<dyn Enforcer> = Box::new(DryRun::new());
 
     println!();
     println!("replay one; the breaker armed, action hard_stop");
     println!("--------------------------------------------------");
     let mut armed = policy.clone();
     armed.action = "hard_stop".into();
-    let armed_out = report::replay(&armed, &events);
+    let armed_out = report::replay(&armed, &events, enforcer.as_mut());
 
     println!();
     println!("replay two; watch mode, same incident, action alert_only");
     println!("--------------------------------------------------");
     let mut watch = policy.clone();
     watch.action = "alert_only".into();
-    let watch_out = report::replay(&watch, &events);
+    let watch_out = report::replay(&watch, &events, enforcer.as_mut());
 
     report::pitch(&armed_out, &watch_out);
 }

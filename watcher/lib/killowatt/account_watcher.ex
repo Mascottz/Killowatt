@@ -11,8 +11,8 @@ defmodule Killowatt.AccountWatcher do
 
   @hour_ms 3_600_000
 
-  def start_link({account, policy}) do
-    GenServer.start_link(__MODULE__, {account, policy}, name: via(account))
+  def start_link({account, policy, opts}) do
+    GenServer.start_link(__MODULE__, {account, policy, opts}, name: via(account))
   end
 
   defp via(account), do: {:via, Registry, {Killowatt.Registry, account}}
@@ -22,11 +22,12 @@ defmodule Killowatt.AccountWatcher do
   def state(account), do: GenServer.call(via(account), :state)
 
   @impl true
-  def init({account, policy}) do
+  def init({account, policy, opts}) do
     {:ok,
      %{
        account: account,
        policy: policy,
+       enforce: Keyword.get(opts, :enforce, :dry_run),
        ledger: [],
        tripped: false,
        warned: false,
@@ -136,11 +137,7 @@ defmodule Killowatt.AccountWatcher do
         "#{event.service} blew the #{window_name}; #{money(spend)} of #{money(limit)} allowed"
     })
 
-    Killowatt.Alerts.notice(%{
-      account: s.account,
-      kind: "enforced",
-      message: "suspended #{event.service} on #{s.account}; action #{s.policy.action}"
-    })
+    Killowatt.Enforcement.dispatch(s.account, event.service, s.policy.action, s.enforce)
 
     %{s | tripped: true}
   end
