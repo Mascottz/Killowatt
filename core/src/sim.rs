@@ -63,14 +63,14 @@ pub fn run() {
     println!("--------------------------------------------------");
     let mut armed = policy.clone();
     armed.action = "hard_stop".into();
-    let armed_out = report::replay(&armed, &events, enforcer.as_mut());
+    let armed_out = report::replay(&armed, &events, enforcer.as_mut(), true);
 
     println!();
     println!("replay two; watch mode, same incident, action alert_only");
     println!("--------------------------------------------------");
     let mut watch = policy.clone();
     watch.action = "alert_only".into();
-    let watch_out = report::replay(&watch, &events, enforcer.as_mut());
+    let watch_out = report::replay(&watch, &events, enforcer.as_mut(), true);
 
     report::pitch(&armed_out, &watch_out);
 }

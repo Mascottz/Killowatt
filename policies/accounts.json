@@ -1,0 +1,26 @@
+{
+    "acme": {
+        "account": "acme-prod",
+        "daily_limit_cents": 25000,
+        "hourly_limit_cents": 6000,
+        "burst": {
+            "window_seconds": 600,
+            "limit_cents": 4000
+        },
+        "action": "hard_stop",
+        "exempt": [
+            "rds-prod-backups"
+        ]
+    },
+    "infra": {
+        "account": "infra-core",
+        "daily_limit_cents": 50000,
+        "hourly_limit_cents": 12000,
+        "burst": {
+            "window_seconds": 600,
+            "limit_cents": 8000
+        },
+        "action": "throttle",
+        "exempt": []
+    }
+}

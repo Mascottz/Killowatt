@@ -41,7 +41,7 @@ one genserver per account under a dynamic supervisor. the beam gives me per acco
 
 ## policies, cue
 
-policies are data, validated at build time. `cue vet` before deploy, `cue export` to json for the core. if a policy does not pass vet it never ships. the schema is in `policies/schema.cue`, accounts live next to it.
+policies are data, validated at build time. `cue vet` before deploy, `cue export` to json for the core. if a policy does not pass vet it never ships. the schema is in `policies/schema.cue`, accounts live next to it. `cue export ./policies` also produces `policies/accounts.json`, the registry the core loads at ingest; one policy per account, one breaker per account, and any account in the bill without a policy gets its events set aside and counted rather than silently ignored.
 
 ## enforcement
 

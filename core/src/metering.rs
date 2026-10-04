@@ -13,13 +13,18 @@ struct BillLine {
 }
 
 // load a billing export; one json object per line, any order, any account mix.
-// events come back sorted by time, filtered to the account we care about,
+// events come back grouped by account and sorted by time within each group,
 // because a breaker decides per account.
-pub fn load_events(path: &Path, account: &str) -> Result<Vec<Event>, String> {
+pub fn load_events_by_account(
+    path: &Path,
+) -> Result<std::collections::BTreeMap<String, Vec<Event>>, String> {
     let raw = fs::read_to_string(path)
         .map_err(|e| format!("cannot read {}: {}", path.display(), e))?;
 
-    let mut all: Vec<BillLine> = Vec::new();
+    let mut groups: std::collections::BTreeMap<String, Vec<Event>> =
+        std::collections::BTreeMap::new();
+    let mut count = 0usize;
+
     for (n, line) in raw.lines().enumerate() {
         let line = line.trim();
         if line.is_empty() {
@@ -27,42 +32,41 @@ pub fn load_events(path: &Path, account: &str) -> Result<Vec<Event>, String> {
         }
         let parsed: BillLine = serde_json::from_str(line)
             .map_err(|e| format!("line {} is not a bill event; {}", n + 1, e))?;
-        all.push(parsed);
+        groups.entry(parsed.account).or_default().push(Event {
+            ts_ms: parsed.ts_ms,
+            service: parsed.service,
+            cents: parsed.cents,
+        });
+        count += 1;
     }
 
-    if all.is_empty() {
+    if count == 0 {
         return Err("the export is empty; nothing to replay".into());
     }
 
-    let for_account: Vec<BillLine> = all
-        .iter()
-        .filter(|l| l.account == account)
-        .cloned()
-        .collect();
-
-    let (picked, dropped) = if for_account.is_empty() {
-        (all, 0usize)
-    } else {
-        let dropped = all.len() - for_account.len();
-        (for_account, dropped)
-    };
-
-    let mut events: Vec<Event> = picked
-        .into_iter()
-        .map(|l| Event {
-            ts_ms: l.ts_ms,
-            service: l.service,
-            cents: l.cents,
-        })
-        .collect();
-    events.sort_by_key(|e| e.ts_ms);
-
-    if dropped > 0 {
-        eprintln!(
-            "note; {} events belonged to other accounts and were set aside",
-            dropped
-        );
+    for events in groups.values_mut() {
+        events.sort_by_key(|e| e.ts_ms);
     }
 
-    Ok(events)
+    Ok(groups)
+}
+
+// load a billing export for one account; the single-account path, a thin
+// wrapper over the grouped loader.
+pub fn load_events(path: &Path, account: &str) -> Result<Vec<Event>, String> {
+    let groups = load_events_by_account(path)?;
+
+    if let Some(events) = groups.get(account) {
+        return Ok(events.clone());
+    }
+
+    // no events named for this account; replay everything, like before, so a
+    // mis-labelled export still shows up in the output.
+    let mut all: Vec<Event> = groups.into_values().flatten().collect();
+    all.sort_by_key(|e| e.ts_ms);
+    eprintln!(
+        "note; no events named {} in this export; replaying the whole thing",
+        account
+    );
+    Ok(all)
 }

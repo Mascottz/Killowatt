@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
@@ -56,4 +57,27 @@ impl Policy {
     pub fn is_exempt(&self, service: &str) -> bool {
         self.exempt.iter().any(|s| s == service)
     }
+}
+
+// every exported policy in the repo, keyed by account name. this is what
+// cue export ./policies produces; one breaker per account, one registry.
+pub fn load_registry() -> BTreeMap<String, Policy> {
+    let candidates = ["policies/accounts.json", "../policies/accounts.json"];
+    for p in candidates {
+        if Path::new(p).exists() {
+            let raw = fs::read_to_string(p).expect("registry readable");
+            let by_key: BTreeMap<String, Policy> =
+                serde_json::from_str(&raw).expect("registry matches schema");
+            // re-key by the account the policy actually names, so the file
+            // can use short keys while the breaker matches on real names.
+            return by_key
+                .into_values()
+                .map(|pol| (pol.account.clone(), pol))
+                .collect();
+        }
+    }
+    let solo = Policy::load();
+    let mut map = BTreeMap::new();
+    map.insert(solo.account.clone(), solo);
+    map
 }
