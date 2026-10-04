@@ -16,6 +16,10 @@ cargo run --release -- ingest ../metering/sample-bill.jsonl --audit /tmp/orders.
 
 the first live adapter suspends the cloudflare worker behind the service that tripped, via the watcher, and enabling it again restores traffic. reversible first, lethal later; kill is a policy word that has no code path yet, on purpose.
 
+## alerts go where your humans are
+
+the watcher's notices are the same calm one-liner everywhere; the log, a slack incoming webhook, or a discord webhook. set `KILOWATT_SLACK_WEBHOOK` or `KILOWATT_DISCORD_WEBHOOK` and the sink is picked up; with neither set, the log is the sink. delivery is wrapped, so a dead webhook can never take the watcher down with it.
+
 ## two postures
 
 armed, and watch. armed stops the loop the moment a window breaks. watch sees everything and touches nothing; it just counts what it would have saved. watch mode is how you earn the right to arm the breaker, and the report you show before anyone hands you the kill switch.
@@ -101,7 +105,6 @@ t+20:00   summary spent, untouched $333.72; would have saved $209.94
 
 - the live metering poller is scaffolded in the watcher with a fake producer and a cloudflare client; it wakes up the day a real token shows up
 - more enforcement adapters; aws scale-to-min next, same undo-on-every-order rule
-- webhooks and slack from the watcher
 - anomaly scoring on top of the plain thresholds; julia service, later
 
 ## house rules
