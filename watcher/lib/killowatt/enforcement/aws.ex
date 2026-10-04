@@ -61,7 +61,8 @@ defmodule Killowatt.Enforcement.Aws do
   end
 
   # KILOWATT_ASG_MAP="api=prod-api-asg,workers=prod-workers-asg"
-  defp asg_for(service) do
+  @doc false
+  def asg_for(service) do
     case System.get_env("KILOWATT_ASG_MAP") do
       nil ->
         service

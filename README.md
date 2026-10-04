@@ -71,6 +71,8 @@ cd watcher
 mix run -e "Killowatt.Demo.run()"
 ```
 
+the watcher reads the same registry the core does; `Killowatt.PolicyRegistry.start_from_registry()` stands up one watcher per exported policy, so adding an account is one cue file and one re-export.
+
 policies are cue files; validate and export them like this.
 
 ```bash

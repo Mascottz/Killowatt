@@ -7,16 +7,9 @@ defmodule Killowatt.Metering.Demo do
   """
 
   def run do
-    policy = %{
-      daily_limit: 250_00,
-      hourly_limit: 60_00,
-      burst_window_ms: 600_000,
-      burst_limit: 40_00,
-      exempt: ["rds-prod-backups"],
-      action: "hard_stop"
-    }
+    policies = Killowatt.PolicyRegistry.load!()
 
-    {:ok, _} = Killowatt.Accounts.start_account("acme-prod", policy)
+    {:ok, _} = Killowatt.Accounts.start_account("acme-prod", policies["acme-prod"])
 
     {:ok, _} =
       Killowatt.Metering.Poller.start_link(
