@@ -28,6 +28,8 @@ usage events → core (rust) → verdict: allow | throttle | hard stop
 
 ## quickstart
 
+fresh workspace with no toolchain? run `bash scripts/bootstrap.sh` once to put rust, elixir, and cue back. they live in the cache so the repo stays the only thing that persists.
+
 the core demo replays a runaway durable objects loop against a real policy and shows the trip.
 
 ```bash
