@@ -24,6 +24,12 @@ deep spruce ground, copper for intent, bone for words. no pure black, no pure wh
 
 the rule that keeps it calm; ember appears nowhere in the resting ui. a calm screen is spruce, copper, bone. ember is reserved for the one moment that matters.
 
+## the mark
+
+the trace k. the initial routed like a pcb trace; a vertical stem, two arms bent at exactly 45 degrees, terminal pads at every open end, and a ring node where the arms meet the stem. copper hairlines on spruce, always; no fills where a line will do.
+
+weight scales with size; at favicon sizes the joint node drops out and the strokes and pads go heavier so it stays legible at 16px. source files live in `logo/`; `mark.svg`, `mark-16.svg`, `lockup.svg`, with the studies that lost in `gallery.html`.
+
 ## shape language
 
 rectangles with four matching corners are banned. every surface carries one 45 degree cut or one oversized radius, and all cuts share the same angle so the family stays coherent.
