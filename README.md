@@ -8,23 +8,77 @@ a misconfigured loop once burned $34k in 8 days and nobody noticed until the inv
 
 not another dashboard. not another budget alert. a circuit breaker.
 
-## enforcement
+## see it work first
 
-a trip becomes an order, and every order carries its own undo. dry-run is the default; it reports what would happen and touches nothing. `--audit` appends every order as one json line, the record you show when someone asks what the breaker did at three in the morning.
+everything below runs offline, no accounts, no tokens, nothing to bill.
 
 ```bash
-cargo run --release -- ingest ../metering/sample-bill.jsonl --audit /tmp/orders.jsonl
+# once per machine, if you have no toolchain; rust, elixir, and cue
+bash scripts/bootstrap.sh
+
+# the incident, replayed armed and watching; a trip you can read
+cd core && cargo run --release
+
+# the same trip through the beam, one process per account
+cd watcher && mix run -e "Killowatt.Demo.run()"
+
+# the dashboard, a live simulation with a posture switch
+cd web && node server.js   # then open http://localhost:8080
 ```
 
-the first live adapter suspends the cloudflare worker behind the service that tripped, via the watcher, and enabling it again restores traffic. the second scales the aws auto scaling group behind it to zero, signed with a sigv4 implementation verified against the aws docs' own test vectors. reversible first, lethal later; kill is a policy word that has no code path yet, on purpose.
+the two postures are the whole philosophy. armed stops the loop the moment a window breaks. watch sees everything and touches nothing, and counts what it would have saved. watch mode is how you earn the right to arm the breaker.
 
-## alerts go where your humans are
+## replay a real bill, any provider
 
-the watcher's notices are the same calm one-liner everywhere; the log, a slack incoming webhook, or a discord webhook. set `KILOWATT_SLACK_WEBHOOK` or `KILOWATT_DISCORD_WEBHOOK` and the sink is picked up; with neither set, the log is the sink. delivery is wrapped, so a dead webhook can never take the watcher down with it.
+one json event per line, money in integer cents, as many accounts mixed in as the export carries. every account with a policy gets its own breaker, armed and watching; accounts without one get set aside and counted.
 
-## two postures
+```bash
+cd core
+cargo run --release -- ingest ../metering/sample-bill.jsonl
+```
 
-armed, and watch. armed stops the loop the moment a window breaks. watch sees everything and touches nothing; it just counts what it would have saved. watch mode is how you earn the right to arm the breaker, and the report you show before anyone hands you the kill switch.
+add `--verbose` for the full transcript per account, `--audit <path>` to append every enforcement order as one json line. `docs/METERING.md` has the event shape and conversion recipes for aws and cloudflare exports.
+
+## bring your own cloud
+
+copy `.env.example` to `.env`, fill in what you have, and source it. every variable is optional; each one only wakes up one more piece, and nothing acts until you say so.
+
+**cloudflare**, live metering plus the suspend adapter:
+
+```bash
+# token needs account-scoped Workers Scripts: Edit and Analytics: Read
+scripts/check-cloudflare.sh            # verify everything, read-only
+cd watcher && mix run ../scripts/watch-live.exs    # the real poller, real bills
+```
+
+the check script detects the account your token can actually see, so a pasted id that points somewhere else gets caught. the poller meters durable objects invocations per script name, and the moment an account trips, the adapter suspends the worker behind it; enabling it again is the undo.
+
+**aws**, the scale-to-zero adapter:
+
+```bash
+# least privilege is autoscaling:UpdateAutoScalingGroup on your group arns
+cd watcher && mix run ../scripts/check-aws.exs     # signs an sts call with our own sigv4
+```
+
+on a trip the adapter scales the auto scaling group behind the service to zero; restoring its previous min and desired is the undo. `KILOWATT_ASG_MAP` maps tripped services to group names.
+
+**alerts**, same calm one-liner everywhere:
+
+set `KILOWATT_SLACK_WEBHOOK` or `KILOWATT_DISCORD_WEBHOOK` and notices go there; with neither set, the log is the sink. delivery is wrapped, so a dead webhook can never take the watcher down.
+
+**enforcement is dry-run until you say otherwise.** the default mode reports what would happen and touches nothing; `--audit` keeps the record. `KILOWATT_ENFORCE_MODE=cloudflare` or `aws` turns the real adapters on. reversible first, lethal later; kill is a policy word that has no code path yet, on purpose.
+
+## policies are data
+
+spend rules live in cue, validated before they get near production.
+
+```bash
+cue vet ./policies/...
+cue export ./policies -e acme -o policies/acme.json    # the built-in sim
+cue export ./policies -o policies/accounts.json        # the registry
+```
+
+the registry is the one source of truth both sides read; the rust core at ingest and the watcher at startup, through `Killowatt.PolicyRegistry`. adding an account is one cue file and one re-export; ci fails if the exports drift from the source.
 
 ## how it works
 
@@ -40,56 +94,11 @@ usage events → core (rust) → verdict: allow | throttle | hard stop
 
 | piece | language | why that one |
 | --- | --- | --- |
-| `core/` | rust | the breaker itself; no gc pauses at the moment you decide to cut a resource, and it is where cloud sdks live later |
+| `core/` | rust | the breaker itself; no gc pauses at the moment you decide to cut a resource |
 | `watcher/` | elixir | one tiny supervised process per account; one account going sideways never touches the rest |
 | `policies/` | cue | spend rules as data, validated before they get near production |
 | `proto/` | protobuf | the contract between the pieces |
 | `web/` | node, zero deps | the dashboard and a live trip demo |
-
-## quickstart
-
-fresh workspace with no toolchain? run `bash scripts/bootstrap.sh` once to put rust, elixir, and cue back. they live in the cache so the repo stays the only thing that persists.
-
-the core demo replays a runaway durable objects loop against a real policy and shows the trip.
-
-```bash
-cd core
-cargo run --release
-```
-
-replay a real billing export through the breaker; any provider, one json event per line, money in cents, as many accounts mixed in as the export carries. every account with a policy gets its own breaker, armed and watching; accounts without one get set aside and counted. add `--verbose` for the full transcript per account, `--audit <path>` to log every order. `docs/METERING.md` has the shape and recipes for aws and cloudflare exports.
-
-```bash
-cd core
-cargo run --release -- ingest ../metering/sample-bill.jsonl
-```
-
-the watcher demo does the same trip through the beam, one process per account.
-
-```bash
-cd watcher
-mix run -e "Killowatt.Demo.run()"
-```
-
-the watcher reads the same registry the core does; `Killowatt.PolicyRegistry.start_from_registry()` stands up one watcher per exported policy, so adding an account is one cue file and one re-export.
-
-policies are cue files; validate and export them like this.
-
-```bash
-cue vet ./policies/...
-cue export ./policies -e acme -o policies/acme.json
-cue export ./policies -o policies/accounts.json
-```
-
-the first export feeds the built-in sim; the second is the registry the core reads at ingest, one policy per account.
-
-the dashboard runs a live simulation with a trip you can watch happen, and the posture switch flips it between armed and watch mode.
-
-```bash
-cd web
-node server.js
-# then open http://localhost:8080
-```
 
 ## what a trip looks like
 
@@ -110,12 +119,13 @@ t+20:00   summary spent, untouched $333.72; would have saved $209.94
 
 ## where this goes next
 
-- the live metering poller is live for cloudflare; the aws side wakes up the day an access key shows up
-- anomaly scoring on top of the plain thresholds; julia service, later
-- the rest is credentials; both live adapters and the poller are waiting on tokens, not code
+- anomaly scoring on top of the plain thresholds; a julia service, later
+- a live aws metering poller, matching the cloudflare one
+- see `CONTRIBUTING.md` for where new adapters and policies slot in
 
 ## house rules
 
 - money is integer cents everywhere; floats do not touch money
 - policies are validated in cue before deploy, never in production
+- dry run first, watch mode first, audit log always
 - copy and docs: no em dashes; use ; or , or an arrow where you need a break
