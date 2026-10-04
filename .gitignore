@@ -13,3 +13,6 @@ web/node_modules/
 
 # os junk
 .DS_Store
+
+# credentials; never committed
+.env
