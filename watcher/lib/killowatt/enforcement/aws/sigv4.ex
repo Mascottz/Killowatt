@@ -63,6 +63,40 @@ defmodule Killowatt.Enforcement.Aws.Sigv4 do
     {auth, payload, amz_date}
   end
 
+  # builds the authorization header and the json payload for a post against
+  # an aws json api (cost explorer and friends); the x-amz-target header
+  # names the operation and rides along as a signed header.
+  def authorization_json(host, body, target, region, service, access_key, secret, amz_date) do
+    date = String.slice(amz_date, 0, 8)
+    payload_hash = sha256_hex(body)
+
+    canonical_headers =
+      "content-type:application/x-amz-amz-json-1.1\n" <>
+        "host:#{host}\n" <>
+        "x-amz-date:#{amz_date}\n" <>
+        "x-amz-target:#{target}\n"
+
+    signed_headers = "content-type;host;x-amz-date;x-amz-target"
+
+    canonical_request =
+      Enum.join(["POST", "/", "", canonical_headers, signed_headers, payload_hash], "\n")
+
+    scope = "#{date}/#{region}/#{service}/aws4_request"
+
+    string_to_sign =
+      Enum.join(["AWS4-HMAC-SHA256", amz_date, scope, sha256_hex(canonical_request)], "\n")
+
+    signature =
+      signing_key(secret, date, region, service)
+      |> sign_string_to_sign(string_to_sign)
+
+    auth =
+      "AWS4-HMAC-SHA256 Credential=#{access_key}/#{scope}, " <>
+        "SignedHeaders=#{signed_headers}, Signature=#{signature}"
+
+    {auth, body, amz_date}
+  end
+
   def timestamp(now \\ DateTime.utc_now()) do
     Calendar.strftime(now, "%Y%m%dT%H%M%SZ")
   end

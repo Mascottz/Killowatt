@@ -26,10 +26,19 @@ if [ ! -x "$HOME/.cache/cue/cue" ]; then
     | tar xz -C "$HOME/.cache/cue" cue
 fi
 
+if [ ! -x "$HOME/.cache/julia/julia" ]; then
+  echo "fetching julia..."
+  mkdir -p "$HOME/.cache/julia"
+  curl -sL https://julialang-s3.julialang.org/bin/linux/x64/1.11/julia-1.11.6-linux-x86_64.tar.gz \
+    | tar xz -C "$HOME/.cache/julia"
+  ln -sf "$HOME/.cache/julia/julia-1.11.6/bin/julia" "$HOME/.cache/julia/julia"
+fi
+
 echo ""
 echo "toolchain ready;"
 echo "  cargo  $(cargo --version 2>/dev/null || echo missing)"
 echo "  elixir $(elixir --version 2>/dev/null | tail -1 || echo missing)"
 echo "  cue    $("$HOME/.cache/cue/cue" version 2>/dev/null | head -1 || echo missing)"
+echo "  julia  $("$HOME/.cache/julia/julia" --version 2>/dev/null || echo missing)"
 echo ""
 echo "in shells that need it; export RUSTUP_HOME=$RUSTUP_HOME CARGO_HOME=$CARGO_HOME"

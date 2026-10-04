@@ -53,17 +53,19 @@ a trip becomes an order. the core produces orders (suspend, throttle; kill exist
 
 ## metering
 
-the core consumes one event shape; account, service, cents, timestamp. two producers exist today;
+the core consumes one event shape; account, service, cents, timestamp. producers today;
 
 - the built-in sim, for the demo
 - `ingest`, which replays a billing export in that shape; real bills, same treatment, see docs/METERING.md
+- the cloudflare live client, verified against a real account; durable objects invocations per script, graphql in, cents out
+- the aws live client, ready for a key; cost explorer GetCostAndUsage in, cents out, signed by the same sigv4 the enforcement adapter uses
 
-the live poller is scaffolded in the watcher where side effects live; it speaks the client contract, ships with a fake producer for offline runs and a cloudflare graphql client, and it wakes up the day a provider token shows up.
+the poller lives in the watcher where side effects live and speaks the client contract; a fake producer keeps the offline path honest. beside the thresholds sits the julia scorer, `scorer/score.jl`; it reads the same stream and scores each event against its own recent history, median and mad, advisory today.
 
 ## what is a demo vs what is real
 
 honest status;
 
-- real; the ledger, the policy evaluation, the trip logic, watch mode, the ingest path for real billing exports, the cue schema, the contracts
-- demo; the built-in usage source is simulated; the enforcement action is a log line, not a cloud call
-- next; the live metering poller, then real suspend actions via the rust sdk
+- real; the ledger, the policy evaluation, the trip logic, watch mode, the ingest path, the cue schema, the contracts, the cloudflare live path, both enforcement adapters, the scorer
+- gated on credentials; the aws live path, and the cloudflare adapter acting on a real account with real workers deployed
+- demo; the built-in usage source is simulated, and the sample bill is generated, both on purpose

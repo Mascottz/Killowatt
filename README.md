@@ -68,6 +68,16 @@ set `KILOWATT_SLACK_WEBHOOK` or `KILOWATT_DISCORD_WEBHOOK` and notices go there;
 
 **enforcement is dry-run until you say otherwise.** the default mode reports what would happen and touches nothing; `--audit` keeps the record. `KILOWATT_ENFORCE_MODE=cloudflare` or `aws` turns the real adapters on. reversible first, lethal later; kill is a policy word that has no code path yet, on purpose.
 
+## anomaly scoring
+
+thresholds catch the obvious; the scorer catches the shape. it is a small julia service, stdlib only, that reads the same event stream and scores every event against its own recent history with a robust z-score; median and mad, no float-poisoned averages.
+
+```bash
+julia scorer/score.jl metering/sample-bill.jsonl
+```
+
+each event comes back with its score, its baseline in cents, and a flag. on the sample bill it lights up the durable objects loop and the queue-worker leak on the exact first bucket of each, scores of 217 and 326 against a flag threshold of 3.5. window, threshold, and burn-in are arguments; the scoring stays advisory for now, feeding the same alerts the thresholds raise.
+
 ## policies are data
 
 spend rules live in cue, validated before they get near production.
@@ -98,6 +108,7 @@ usage events → core (rust) → verdict: allow | throttle | hard stop
 | `watcher/` | elixir | one tiny supervised process per account; one account going sideways never touches the rest |
 | `policies/` | cue | spend rules as data, validated before they get near production |
 | `proto/` | protobuf | the contract between the pieces |
+| `scorer/` | julia | anomaly scoring; the numeric heavy lifting lives in the language built for it |
 | `web/` | node, zero deps | the dashboard and a live trip demo |
 
 ## what a trip looks like
@@ -119,8 +130,8 @@ t+20:00   summary spent, untouched $333.72; would have saved $209.94
 
 ## where this goes next
 
-- anomaly scoring on top of the plain thresholds; a julia service, later
-- a live aws metering poller, matching the cloudflare one
+- scoring advice joining the trip decision; today it raises its hand beside the thresholds, tomorrow it gets a vote
+- the aws poller wants live proof the way the cloudflare one got it; the code and its signer are ready, an access key is the gate
 - see `CONTRIBUTING.md` for where new adapters and policies slot in
 
 ## house rules
