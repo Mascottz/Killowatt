@@ -128,6 +128,18 @@ t+07:58   note    nothing touched; killowatt would have stopped this
 t+20:00   summary spent, untouched $333.72; would have saved $209.94
 ```
 
+## What this does not do
+
+Killowatt measures spend and opens a breaker on it, per account and per policy. It does not bound the blast radius of a credential; stopping the meter is not the same as narrowing the reach.
+
+Three things worth stating rather than leaving to inference:
+
+- Spend is the only signal. A leaked key that reaches everything still reaches everything until the breaker trips and its action fires.
+- Scope stays with the platform. IAM, network boundaries and credential reach are the cloud's job, and the least privilege notes in "Plug in a real cloud" are where killowatt asks for its own narrow token.
+- Per-service limits narrow what a policy watches, not what a credential may touch. The two are easy to confuse, and the confusion flatters the tool.
+
+Stated because a spend cap that reads like reach control is a promise killowatt cannot keep, and being trusted for one small thing beats being believed for two.
+
 ## Where this goes next
 
 - Scoring advice joining the trip decision; today it raises its hand beside the thresholds, tomorrow it gets a vote
