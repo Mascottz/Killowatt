@@ -8,6 +8,7 @@ The short version; keep the money in integer cents, keep the copy calm, and make
 cd core && cargo test                       # the breaker, 15 tests
 cd watcher && mix test                      # the beam side, 35 tests
 cue vet ./policies/...                      # the policies
+julia scorer/runtests.jl                    # the scorer
 ```
 
 ## Add an account
